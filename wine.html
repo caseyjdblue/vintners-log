@@ -1081,6 +1081,9 @@ function renderStageContent(batch) {
     case 'methodology':            el.innerHTML = renderMethodologyStage(batch);    break;
     case 'recipe':                 el.innerHTML = renderRecipeStage(batch);         break;
     case 'preparation':            el.innerHTML = renderPreparationStage(batch);    break;
+    case 'primary_fermentation':   el.innerHTML = renderPrimaryFermStage(batch);    break;
+    case 'secondary_fermentation': el.innerHTML = renderSecondaryFermStage(batch);  break;
+    case 'clarification':          el.innerHTML = renderClarificationStage(batch);  break;
     default:
       el.innerHTML = `<div class="stage-card">
         <div class="stage-card-header"><h3>${getStageInfo(stage).icon} ${getStageInfo(stage).label}</h3></div>
@@ -1724,6 +1727,548 @@ function savePreparation(advance) {
 
 function completePreparation() { savePreparation(true); }
 
+// ─── Primary Fermentation Stage ──────────────────────────────────────
+function renderPrimaryFermStage(batch) {
+  const d = batch.stages.primary_fermentation || {};
+  const isCompleted = batch.completed_stages.includes('primary_fermentation');
+  const prep = batch.stages.preparation || {};
+  const rec  = batch.stages.recipe || {};
+  const logs = d.logs || [];
+  const vals = {
+    start_date: d.start_date || prep.prep_date || '',
+    vessel:     d.vessel     || 'Primary bucket (food-grade)',
+    target_fg:  d.target_fg  || rec.target_fg || '1.010',
+    final_sg:   d.final_sg   || '',
+    end_date:   d.end_date   || '',
+    racking_notes: d.racking_notes || '',
+    notes:      d.notes      || '',
+  };
+
+  // Estimated ABV from OG/FG
+  let abvHint = '';
+  const og = parseFloat(prep.initial_sg);
+  const fg = parseFloat(vals.final_sg);
+  if (og && fg) {
+    const abv = ((og - fg) * 131.25).toFixed(1);
+    abvHint = `Estimated ABV: <strong>${abv}%</strong>`;
+  }
+
+  const logRows = logs.map((l, i) => `
+    <tr style="font-size:.85rem">
+      <td style="padding:6px 8px">${escHtml(l.date)}</td>
+      <td style="padding:6px 8px;font-weight:bold">${escHtml(l.sg)}</td>
+      <td style="padding:6px 8px">${escHtml(l.temp)}${l.temp ? '°F' : ''}</td>
+      <td style="padding:6px 8px;color:var(--muted)">${escHtml(l.notes)}</td>
+      <td style="padding:6px 4px">
+        <button class="btn btn-danger btn-sm" onclick="deleteFermLog('primary_fermentation',${i})" style="padding:3px 7px">✕</button>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🫧 Primary Fermentation</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Stage complete. You can still add log entries and edit notes.</div>` : ''}
+        <div class="info-box">
+          🫧 <strong>Primary ferm tips for cherry:</strong> Punch down the cap 1–2× daily to keep fruit submerged.
+          Expect vigorous activity 24–72 hours after pitching. Primary typically lasts 7–14 days.
+          Rack to secondary when SG reaches <strong>1.020–1.030</strong> and activity slows.
+        </div>
+
+        <div class="section-title">Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="pf-start" value="${vals.start_date}" />
+          </div>
+          <div class="form-group">
+            <label>Fermentation Vessel</label>
+            <select id="pf-vessel">
+              ${['Primary bucket (food-grade)','Glass carboy','Plastic carboy','Ceramic crock','Stainless pot','Other']
+                .map(o => `<option${o === vals.vessel ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Target FG</label>
+            <input type="number" id="pf-target-fg" value="${vals.target_fg}" placeholder="1.010" step="0.001" />
+            <p class="form-hint">Rack to secondary around 1.020–1.030</p>
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <div class="section-title">Daily / Weekly Log</div>
+        <div style="overflow-x:auto;margin-bottom:12px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:2px solid var(--cream-d)">
+                <th style="text-align:left;padding:4px 8px">Date</th>
+                <th style="text-align:left;padding:4px 8px">SG</th>
+                <th style="text-align:left;padding:4px 8px">Temp (°F)</th>
+                <th style="text-align:left;padding:4px 8px">Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pf-log-rows">${logRows || '<tr><td colspan="5" style="padding:14px 8px;color:var(--muted);font-size:.85rem">No log entries yet. Add your first reading below.</td></tr>'}</tbody>
+          </table>
+        </div>
+
+        <!-- Add log entry inline -->
+        <div style="background:var(--cream-d);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">Add Log Entry</div>
+          <div style="display:grid;grid-template-columns:1fr 90px 90px 1fr auto;gap:8px;align-items:end">
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Date</label>
+              <input type="date" id="pf-log-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">SG</label>
+              <input type="number" id="pf-log-sg" placeholder="1.045" step="0.001" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Temp °F</label>
+              <input type="number" id="pf-log-temp" placeholder="68" step="1" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Notes</label>
+              <input type="text" id="pf-log-notes" placeholder="Activity level, color, aroma..." style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="addFermLog('primary_fermentation')">+ Add</button>
+          </div>
+        </div>
+
+        <div class="section-title">Completion</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final SG (at racking)</label>
+            <input type="number" id="pf-final-sg" value="${vals.final_sg}" placeholder="e.g. 1.020" step="0.001"
+              oninput="updateAbvHint()" />
+            ${abvHint ? `<p class="form-hint" id="pf-abv-hint">${abvHint}</p>` : `<p class="form-hint" id="pf-abv-hint">Enter OG + FG to estimate ABV</p>`}
+          </div>
+          <div class="form-group">
+            <label>End / Racking Date</label>
+            <input type="date" id="pf-end-date" value="${vals.end_date}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="pf-notes" placeholder="Overall observations, any issues, flavor notes at racking...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Log readings regularly. Rack to secondary when SG ≈ 1.020–1.030.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="savePrimaryFerm()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completePrimaryFerm()">Rack to Secondary &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="savePrimaryFerm()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function updateAbvHint() {
+  const batch = getData().batches.find(b => b.id === currentBatchId);
+  const prep = batch?.stages?.preparation || {};
+  const og = parseFloat(prep.initial_sg);
+  const fg = parseFloat(document.getElementById('pf-final-sg')?.value);
+  const hint = document.getElementById('pf-abv-hint');
+  if (hint && og && fg) hint.innerHTML = `Estimated ABV: <strong>${((og - fg) * 131.25).toFixed(1)}%</strong>`;
+}
+
+function addFermLog(stageId) {
+  const dateEl  = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-date'  : 'sf-log-date');
+  const sgEl    = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-sg'    : 'sf-log-sg');
+  const tempEl  = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-temp'  : 'sf-log-temp');
+  const notesEl = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-notes' : 'sf-log-notes');
+
+  const date  = dateEl?.value;
+  const sg    = sgEl?.value;
+  if (!date || !sg) { showToast('Date and SG are required for a log entry.', 'error'); return; }
+
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages[stageId]) batch.stages[stageId] = {};
+  if (!batch.stages[stageId].logs) batch.stages[stageId].logs = [];
+  batch.stages[stageId].logs.push({
+    date: date, sg: sg, temp: tempEl?.value || '', notes: notesEl?.value.trim() || '',
+    logged_at: new Date().toISOString()
+  });
+  saveData(data);
+  showToast('Log entry added.', 'success');
+  renderDetail(batch);
+}
+
+function deleteFermLog(stageId, index) {
+  if (!confirm('Remove this log entry?')) return;
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch?.stages[stageId]?.logs) return;
+  batch.stages[stageId].logs.splice(index, 1);
+  saveData(data);
+  renderDetail(batch);
+}
+
+function savePrimaryFerm(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  if (!batch.stages.primary_fermentation) batch.stages.primary_fermentation = {};
+  const pf = batch.stages.primary_fermentation;
+  pf.start_date  = document.getElementById('pf-start').value;
+  pf.vessel      = document.getElementById('pf-vessel').value;
+  pf.target_fg   = document.getElementById('pf-target-fg').value;
+  pf.final_sg    = document.getElementById('pf-final-sg').value;
+  pf.end_date    = document.getElementById('pf-end-date').value;
+  pf.notes       = document.getElementById('pf-notes').value.trim();
+  pf.saved_at    = new Date().toISOString();
+  if (!pf.logs) pf.logs = [];
+  if (advance) {
+    if (!batch.completed_stages.includes('primary_fermentation'))
+      batch.completed_stages.push('primary_fermentation');
+    batch.current_stage = 'secondary_fermentation';
+  }
+  saveData(data);
+  showToast(advance ? 'Racked to secondary!' : 'Primary fermentation saved.', 'success');
+  renderDetail(batch);
+}
+
+function completePrimaryFerm() {
+  const fg = document.getElementById('pf-final-sg')?.value;
+  if (!fg) { showToast('Please enter a final SG reading before racking.', 'error'); return; }
+  savePrimaryFerm(true);
+}
+
+// ─── Secondary Fermentation Stage ────────────────────────────────────
+function renderSecondaryFermStage(batch) {
+  const d = batch.stages.secondary_fermentation || {};
+  const isCompleted = batch.completed_stages.includes('secondary_fermentation');
+  const pf = batch.stages.primary_fermentation || {};
+  const logs = d.logs || [];
+  const vals = {
+    rack_date:   d.rack_date   || pf.end_date || '',
+    vessel:      d.vessel      || 'Glass carboy (airlocked)',
+    so2_at_rack: d.so2_at_rack !== undefined ? d.so2_at_rack : true,
+    fining:      d.fining      || [],
+    final_sg:    d.final_sg    || '',
+    end_date:    d.end_date    || '',
+    notes:       d.notes       || '',
+  };
+
+  const logRows = logs.map((l, i) => `
+    <tr style="font-size:.85rem">
+      <td style="padding:6px 8px">${escHtml(l.date)}</td>
+      <td style="padding:6px 8px;font-weight:bold">${escHtml(l.sg)}</td>
+      <td style="padding:6px 8px">${escHtml(l.temp)}${l.temp ? '°F' : ''}</td>
+      <td style="padding:6px 8px;color:var(--muted)">${escHtml(l.notes)}</td>
+      <td style="padding:6px 4px">
+        <button class="btn btn-danger btn-sm" onclick="deleteFermLog('secondary_fermentation',${i})" style="padding:3px 7px">✕</button>
+      </td>
+    </tr>`).join('');
+
+  // ABV from prep OG + secondary final SG
+  let abvNote = '';
+  const prep = batch.stages.preparation || {};
+  const og = parseFloat(prep.initial_sg);
+  const sfg = parseFloat(vals.final_sg);
+  if (og && sfg) abvNote = `<span style="color:var(--green);font-weight:bold">Est. ABV: ${((og - sfg) * 131.25).toFixed(1)}%</span>`;
+
+  const FININGS = ['Bentonite','Sparkolloid','Chitosan','Kieselsol','Super-Kleer','Egg White Fining','Gelatin','None'];
+  const finingChecks = FININGS.map(f => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:.88rem;cursor:pointer">
+      <input type="checkbox" class="fining-check" value="${f}" ${(vals.fining||[]).includes(f) ? 'checked' : ''} style="width:15px;height:15px" />
+      ${f}
+    </label>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🔬 Secondary Fermentation</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Stage complete. You can still add log entries.</div>` : ''}
+        <div class="info-box">
+          🔬 <strong>Secondary tips:</strong> Rack off the gross lees into a clean carboy with an airlock.
+          Top up to minimize headspace. Check SG weekly. Secondary lasts 4–8 weeks.
+          Wine is ready to clarify/bottle when SG is stable over 2 consecutive readings and the wine is clearing.
+        </div>
+
+        <div class="section-title">Racking Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Racking Date</label>
+            <input type="date" id="sf-rack-date" value="${vals.rack_date}" />
+          </div>
+          <div class="form-group">
+            <label>Secondary Vessel</label>
+            <select id="sf-vessel">
+              ${['Glass carboy (airlocked)','Plastic carboy','Stainless keg','Oak barrel','Other']
+                .map(o => `<option${o === vals.vessel ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:16px">
+          <input type="checkbox" id="sf-so2" ${vals.so2_at_rack ? 'checked' : ''} style="width:16px;height:16px" />
+          Added SO₂ (Campden) at racking
+        </label>
+
+        <div class="section-title">Weekly Log</div>
+        <div style="overflow-x:auto;margin-bottom:12px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:2px solid var(--cream-d)">
+                <th style="text-align:left;padding:4px 8px">Date</th>
+                <th style="text-align:left;padding:4px 8px">SG</th>
+                <th style="text-align:left;padding:4px 8px">Temp (°F)</th>
+                <th style="text-align:left;padding:4px 8px">Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${logRows || '<tr><td colspan="5" style="padding:14px 8px;color:var(--muted);font-size:.85rem">No entries yet.</td></tr>'}</tbody>
+          </table>
+        </div>
+
+        <!-- Add log entry -->
+        <div style="background:var(--cream-d);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">Add Log Entry</div>
+          <div style="display:grid;grid-template-columns:1fr 90px 90px 1fr auto;gap:8px;align-items:end">
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Date</label>
+              <input type="date" id="sf-log-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">SG</label>
+              <input type="number" id="sf-log-sg" placeholder="1.010" step="0.001" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Temp °F</label>
+              <input type="number" id="sf-log-temp" placeholder="65" step="1" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Notes</label>
+              <input type="text" id="sf-log-notes" placeholder="Clarity, activity, color..." style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="addFermLog('secondary_fermentation')">+ Add</button>
+          </div>
+        </div>
+
+        <div class="section-title">Fining Agents Used</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px">
+          ${finingChecks}
+        </div>
+
+        <div class="section-title">Completion</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final / Stable SG</label>
+            <input type="number" id="sf-final-sg" value="${vals.final_sg}" placeholder="e.g. 0.998–1.005" step="0.001" />
+            ${abvNote ? `<p class="form-hint">${abvNote}</p>` : '<p class="form-hint">Final ABV will calculate when OG + FG are set</p>'}
+          </div>
+          <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="sf-end-date" value="${vals.end_date}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="sf-notes" placeholder="Clarity progress, flavour development, racking details...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Stable SG over 2+ weeks = ready to clarify or bottle.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveSecondaryFerm()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeSecondaryFerm()">Move to Clarification &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveSecondaryFerm()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveSecondaryFerm(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.secondary_fermentation) batch.stages.secondary_fermentation = {};
+  const sf = batch.stages.secondary_fermentation;
+  sf.rack_date   = document.getElementById('sf-rack-date').value;
+  sf.vessel      = document.getElementById('sf-vessel').value;
+  sf.so2_at_rack = document.getElementById('sf-so2').checked;
+  sf.fining      = Array.from(document.querySelectorAll('.fining-check:checked')).map(el => el.value);
+  sf.final_sg    = document.getElementById('sf-final-sg').value;
+  sf.end_date    = document.getElementById('sf-end-date').value;
+  sf.notes       = document.getElementById('sf-notes').value.trim();
+  sf.saved_at    = new Date().toISOString();
+  if (!sf.logs) sf.logs = [];
+  if (advance) {
+    if (!batch.completed_stages.includes('secondary_fermentation'))
+      batch.completed_stages.push('secondary_fermentation');
+    batch.current_stage = 'clarification';
+  }
+  saveData(data);
+  showToast(advance ? 'Moving to Clarification.' : 'Secondary fermentation saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeSecondaryFerm() {
+  const fg = document.getElementById('sf-final-sg')?.value;
+  if (!fg) { showToast('Please enter a stable final SG before moving on.', 'error'); return; }
+  saveSecondaryFerm(true);
+}
+
+// ─── Clarification Stage ──────────────────────────────────────────────
+function renderClarificationStage(batch) {
+  const d = batch.stages.clarification || {};
+  const isCompleted = batch.completed_stages.includes('clarification');
+  const vals = {
+    start_date:  d.start_date  || '',
+    method:      d.method      || 'Natural settling',
+    agents:      d.agents      || [],
+    filtered:    d.filtered    !== undefined ? d.filtered : false,
+    filter_type: d.filter_type || '',
+    so2_final:   d.so2_final   !== undefined ? d.so2_final : true,
+    so2_ppm:     d.so2_ppm     || '50',
+    clarity:     d.clarity     || '',
+    color:       d.color       || '',
+    aroma:       d.aroma       || '',
+    taste:       d.taste       || '',
+    end_date:    d.end_date    || '',
+    notes:       d.notes       || '',
+  };
+
+  const METHODS = ['Natural settling','Bentonite treatment','Cold crashing','Isinglass','Chitosan + Kieselsol','Commercial finings kit','Filter pad','Other'];
+  const CLARITY = ['Cloudy','Slightly hazy','Clear','Brilliant','Crystal clear'];
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>✨ Clarification</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Stage complete.</div>` : ''}
+        <div class="info-box">
+          ✨ <strong>Clarification tips:</strong> Cherry wine typically clears on its own over 4–8 weeks in secondary.
+          Cold crashing (35–40°F for 1–2 weeks) speeds things up dramatically.
+          Add final SO₂ before bottling to protect against oxidation and microbial spoilage.
+        </div>
+
+        <div class="section-title">Clarification Method</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="cl-start" value="${vals.start_date}" />
+          </div>
+          <div class="form-group">
+            <label>Primary Method</label>
+            <select id="cl-method">
+              ${METHODS.map(o => `<option${o === vals.method ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:16px">
+          <input type="checkbox" id="cl-filtered" ${vals.filtered ? 'checked' : ''} style="width:16px;height:16px" />
+          Wine was filtered (pad filter, cartridge filter, etc.)
+        </label>
+
+        <div class="section-title">Final SO₂ Addition</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="cl-so2" ${vals.so2_final ? 'checked' : ''} style="width:16px;height:16px" />
+            Added SO₂ before bottling
+          </label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:.85rem;color:var(--ink-l)">Target free SO₂ (ppm):</label>
+            <input type="number" id="cl-so2-ppm" value="${vals.so2_ppm}" style="width:70px;padding:6px 8px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" step="5" min="0" max="150" />
+          </div>
+        </div>
+
+        <div class="section-title">Wine Assessment</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Clarity</label>
+            <select id="cl-clarity">
+              <option value="">— select —</option>
+              ${CLARITY.map(o => `<option${o === vals.clarity ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Color Description</label>
+            <input type="text" id="cl-color" value="${escHtml(vals.color)}" placeholder="e.g. Deep ruby, bright cherry red" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Aroma</label>
+            <input type="text" id="cl-aroma" value="${escHtml(vals.aroma)}" placeholder="e.g. Fresh cherry, floral, light tannin" />
+          </div>
+          <div class="form-group">
+            <label>Taste</label>
+            <input type="text" id="cl-taste" value="${escHtml(vals.taste)}" placeholder="e.g. Fruity, balanced acid, semi-sweet" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ready-to-bottle Date</label>
+            <input type="date" id="cl-end" value="${vals.end_date}" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="cl-notes" placeholder="Settling observations, any treatments applied, final sensory notes...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Wine is ready to bottle when clear and SO₂ is adjusted.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveClarification()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeClarification()">Ready to Bottle &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveClarification()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveClarification(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.clarification) batch.stages.clarification = {};
+  const cl = batch.stages.clarification;
+  cl.start_date  = document.getElementById('cl-start').value;
+  cl.method      = document.getElementById('cl-method').value;
+  cl.filtered    = document.getElementById('cl-filtered').checked;
+  cl.so2_final   = document.getElementById('cl-so2').checked;
+  cl.so2_ppm     = document.getElementById('cl-so2-ppm').value;
+  cl.clarity     = document.getElementById('cl-clarity').value;
+  cl.color       = document.getElementById('cl-color').value.trim();
+  cl.aroma       = document.getElementById('cl-aroma').value.trim();
+  cl.taste       = document.getElementById('cl-taste').value.trim();
+  cl.end_date    = document.getElementById('cl-end').value;
+  cl.notes       = document.getElementById('cl-notes').value.trim();
+  cl.saved_at    = new Date().toISOString();
+  if (advance) {
+    if (!batch.completed_stages.includes('clarification'))
+      batch.completed_stages.push('clarification');
+    batch.current_stage = 'bottling';
+  }
+  saveData(data);
+  showToast(advance ? 'Clarification complete! Ready to bottle.' : 'Clarification saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeClarification() { saveClarification(true); }
+
 // ─── Completed Stage Summary ──────────────────────────────────────────
 function renderCompletedStageSummary(stageObj, data, batch) {
   const pairs = [];
@@ -1752,6 +2297,24 @@ function renderCompletedStageSummary(stageObj, data, batch) {
     if (data.initial_sg) pairs.push(['OG Measured', data.initial_sg]);
     if (data.initial_ph) pairs.push(['pH',          data.initial_ph]);
     if (data.crush_method) pairs.push(['Crush',     data.crush_method]);
+  }
+  if (stageObj.id === 'primary_fermentation') {
+    if (data.start_date) pairs.push(['Started',   formatDate(data.start_date)]);
+    if (data.end_date)   pairs.push(['Racked',    formatDate(data.end_date)]);
+    if (data.final_sg)   pairs.push(['Final SG',  data.final_sg]);
+    if (data.logs?.length) pairs.push(['Log Entries', data.logs.length]);
+  }
+  if (stageObj.id === 'secondary_fermentation') {
+    if (data.rack_date)  pairs.push(['Racked',    formatDate(data.rack_date)]);
+    if (data.end_date)   pairs.push(['Completed', formatDate(data.end_date)]);
+    if (data.final_sg)   pairs.push(['Stable SG', data.final_sg]);
+    if (data.fining?.length) pairs.push(['Finings', data.fining.join(', ')]);
+  }
+  if (stageObj.id === 'clarification') {
+    if (data.method)    pairs.push(['Method',  data.method]);
+    if (data.clarity)   pairs.push(['Clarity', data.clarity]);
+    if (data.so2_ppm)   pairs.push(['Free SO₂', data.so2_ppm + ' ppm']);
+    if (data.end_date)  pairs.push(['Bottling Date', formatDate(data.end_date)]);
   }
   const rows = pairs.map(([k,v]) => `
     <span style="font-size:.82rem;color:var(--muted)">${k}:</span>
