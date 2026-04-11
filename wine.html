@@ -655,7 +655,7 @@
 
 <!-- ═══ FOOTER ═══════════════════════════════════════════════════════ -->
 <footer class="app-footer">
-  Vintner's Log &mdash; Sprint 1 &bull; Dashboard &amp; Batch Management
+  Vintner's Log &mdash; Full lifecycle: Fruit Selection → Methodology → Recipe → Preparation → Fermentation → Bottling → Aging
 </footer>
 
 <!-- ═══ NEW BATCH MODAL ══════════════════════════════════════════════ -->
@@ -1084,6 +1084,8 @@ function renderStageContent(batch) {
     case 'primary_fermentation':   el.innerHTML = renderPrimaryFermStage(batch);    break;
     case 'secondary_fermentation': el.innerHTML = renderSecondaryFermStage(batch);  break;
     case 'clarification':          el.innerHTML = renderClarificationStage(batch);  break;
+    case 'bottling':               el.innerHTML = renderBottlingStage(batch);        break;
+    case 'aging':                  el.innerHTML = renderAgingStage(batch);           break;
     default:
       el.innerHTML = `<div class="stage-card">
         <div class="stage-card-header"><h3>${getStageInfo(stage).icon} ${getStageInfo(stage).label}</h3></div>
@@ -2269,6 +2271,361 @@ function saveClarification(advance) {
 
 function completeClarification() { saveClarification(true); }
 
+// ─── Bottling Stage ───────────────────────────────────────────────────
+function renderBottlingStage(batch) {
+  const d = batch.stages.bottling || {};
+  const isCompleted = batch.completed_stages.includes('bottling');
+  const prep = batch.stages.preparation || {};
+  const sf   = batch.stages.secondary_fermentation || {};
+  const cl   = batch.stages.clarification || {};
+  const vals = {
+    bottling_date:   d.bottling_date   || cl.end_date   || '',
+    bottle_count:    d.bottle_count    || '',
+    bottle_size:     d.bottle_size     || '750ml',
+    final_sg:        d.final_sg        || sf.final_sg   || '',
+    back_sweetened:  d.back_sweetened  !== undefined ? d.back_sweetened : false,
+    sugar_added_oz:  d.sugar_added_oz  || '',
+    sweetness_desc:  d.sweetness_desc  || '',
+    cork_type:       d.cork_type       || 'Natural cork',
+    label:           d.label           || '',
+    storage_location: d.storage_location || 'Cool, dark place',
+    notes:           d.notes           || '',
+  };
+
+  // ABV calc
+  let abvNote = '';
+  const og = parseFloat(prep.initial_sg);
+  const fg = parseFloat(vals.final_sg);
+  if (og && fg) {
+    abvNote = `<p class="form-hint" style="color:var(--green);font-weight:bold">Estimated ABV: ${((og - fg) * 131.25).toFixed(1)}%</p>`;
+  }
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🍾 Bottling</h3>
+        ${isCompleted ? '<span class="stage-pill stage-aging" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Bottled! Aging stage has begun.</div>` : ''}
+        <div class="info-box">
+          🍾 <strong>Bottling day tips:</strong> Sanitize everything — bottles, siphon, corks.
+          If back-sweetening, add dissolved sugar and stir gently, then wait 24 hours to check for re-fermentation.
+          Add potassium sorbate (1/2 tsp/gal) to prevent refermentation if the wine isn't bone dry.
+          Fill bottles to within 1 inch of the cork. Label and enjoy!
+        </div>
+
+        <div class="section-title">Bottling Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bottling Date</label>
+            <input type="date" id="bot-date" value="${vals.bottling_date}" />
+          </div>
+          <div class="form-group">
+            <label>Number of Bottles</label>
+            <input type="number" id="bot-count" value="${vals.bottle_count}" placeholder="e.g. 15" step="1" min="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bottle Size</label>
+            <select id="bot-size">
+              ${['375ml (half bottle)','500ml','750ml (standard)','1L','1.5L (magnum)','Other']
+                .map(o => `<option${o === vals.bottle_size ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cork / Closure Type</label>
+            <select id="bot-cork">
+              ${['Natural cork','Synthetic cork','Cork #9','Screw cap','Swing top (Grolsch)','Crown cap','Other']
+                .map(o => `<option${o === vals.cork_type ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">Final Gravity &amp; ABV</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final SG at Bottling</label>
+            <input type="number" id="bot-sg" value="${vals.final_sg}" placeholder="0.995–1.010" step="0.001" />
+            ${abvNote}
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <div class="section-title">Back-Sweetening</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:12px">
+          <input type="checkbox" id="bot-sweet" ${vals.back_sweetened ? 'checked' : ''} style="width:16px;height:16px"
+            onchange="document.getElementById('bot-sweet-detail').style.display=this.checked?'grid':'none'" />
+          Wine was back-sweetened before bottling
+        </label>
+        <div id="bot-sweet-detail" style="display:${vals.back_sweetened ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="form-group" style="margin:0">
+            <label>Sugar Added (oz)</label>
+            <input type="number" id="bot-sugar-oz" value="${vals.sugar_added_oz}" placeholder="0" step="0.5" min="0" />
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Resulting Sweetness</label>
+            <input type="text" id="bot-sweetness" value="${escHtml(vals.sweetness_desc)}" placeholder="e.g. Semi-sweet, 2% RS" />
+          </div>
+        </div>
+
+        <div class="section-title">Label &amp; Storage</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Label Name / Text</label>
+            <input type="text" id="bot-label" value="${escHtml(vals.label)}" placeholder="e.g. Backyard Sweet Cherry 2026" />
+          </div>
+          <div class="form-group">
+            <label>Storage Location</label>
+            <input type="text" id="bot-storage" value="${escHtml(vals.storage_location)}" placeholder="e.g. Cellar, 55°F" />
+          </div>
+        </div>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="bot-notes" placeholder="Anything notable about the bottling session, flavour at bottling, gifting plans...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">After bottling, let the wine rest 2–4 weeks before opening the first bottle.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveBottling()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeBottling()">🪵 Start Aging &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveBottling()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveBottling(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.bottling) batch.stages.bottling = {};
+  const bot = batch.stages.bottling;
+  bot.bottling_date    = document.getElementById('bot-date').value;
+  bot.bottle_count     = document.getElementById('bot-count').value;
+  bot.bottle_size      = document.getElementById('bot-size').value;
+  bot.cork_type        = document.getElementById('bot-cork').value;
+  bot.final_sg         = document.getElementById('bot-sg').value;
+  bot.back_sweetened   = document.getElementById('bot-sweet').checked;
+  bot.sugar_added_oz   = document.getElementById('bot-sugar-oz')?.value || '';
+  bot.sweetness_desc   = document.getElementById('bot-sweetness')?.value.trim() || '';
+  bot.label            = document.getElementById('bot-label').value.trim();
+  bot.storage_location = document.getElementById('bot-storage').value.trim();
+  bot.notes            = document.getElementById('bot-notes').value.trim();
+  bot.saved_at         = new Date().toISOString();
+  if (advance) {
+    if (!batch.completed_stages.includes('bottling'))
+      batch.completed_stages.push('bottling');
+    batch.current_stage = 'aging';
+  }
+  saveData(data);
+  showToast(advance ? 'Bottled! Starting the aging stage.' : 'Bottling saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeBottling() {
+  const count = document.getElementById('bot-count')?.value;
+  if (!count) { showToast('Please enter bottle count before starting aging.', 'error'); return; }
+  saveBottling(true);
+}
+
+// ─── Aging Stage ──────────────────────────────────────────────────────
+function renderAgingStage(batch) {
+  const d = batch.stages.aging || {};
+  const isCompleted = batch.completed_stages.includes('aging');
+  const bot = batch.stages.bottling || {};
+  const tastingLogs = d.tasting_logs || [];
+  const vals = {
+    start_date:      d.start_date      || bot.bottling_date || '',
+    target_date:     d.target_date     || '',
+    storage:         d.storage         || bot.storage_location || 'Cool, dark place',
+    bottles_remaining: d.bottles_remaining !== undefined ? d.bottles_remaining : (bot.bottle_count || ''),
+    notes:           d.notes           || '',
+  };
+
+  const tastingRows = tastingLogs.map((t, i) => `
+    <div style="background:var(--cream-d);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <strong style="color:var(--burgundy)">${escHtml(t.date)}</strong>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:var(--gold);font-size:1.1rem">${'★'.repeat(t.rating || 0)}${'☆'.repeat(5 - (t.rating || 0))}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteTastingLog(${i})" style="padding:3px 7px">✕</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.85rem">
+        ${t.color ? `<div><span style="color:var(--muted)">Color:</span> ${escHtml(t.color)}</div>` : ''}
+        ${t.aroma ? `<div><span style="color:var(--muted)">Aroma:</span> ${escHtml(t.aroma)}</div>` : ''}
+        ${t.taste ? `<div><span style="color:var(--muted)">Taste:</span> ${escHtml(t.taste)}</div>` : ''}
+        ${t.finish ? `<div><span style="color:var(--muted)">Finish:</span> ${escHtml(t.finish)}</div>` : ''}
+      </div>
+      ${t.notes ? `<p style="margin-top:6px;font-size:.82rem;color:var(--ink-l)">${escHtml(t.notes)}</p>` : ''}
+    </div>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🪵 Aging &amp; Tasting Notes</h3>
+        ${isCompleted ? '<span class="stage-pill stage-complete" style="font-size:.72rem">✓ Batch Complete</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">🎉 This batch is complete. All tasting notes are preserved below.</div>` : ''}
+        <div class="info-box cherry">
+          🪵 <strong>Aging cherry wine:</strong> Cherry wine is best enjoyed young to mid-term (6–18 months).
+          Try the first bottle at 2–3 months to track development. Peak drinking window is typically 6–12 months after bottling.
+          Store upright if using screw caps; on their side for corks.
+        </div>
+
+        <div class="section-title">Aging Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Aging Start Date</label>
+            <input type="date" id="ag-start" value="${vals.start_date}" />
+          </div>
+          <div class="form-group">
+            <label>Target Ready-to-Drink Date</label>
+            <input type="date" id="ag-target" value="${vals.target_date}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Storage Location</label>
+            <input type="text" id="ag-storage" value="${escHtml(vals.storage)}" placeholder="e.g. Cellar at 55°F, basement rack" />
+          </div>
+          <div class="form-group">
+            <label>Bottles Remaining</label>
+            <input type="number" id="ag-bottles" value="${vals.bottles_remaining}" placeholder="${bot.bottle_count || 0}" step="1" min="0" />
+          </div>
+        </div>
+
+        <div class="section-title">Tasting Notes</div>
+        ${tastingLogs.length ? tastingRows : '<p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">No tasting notes yet. Open a bottle and record your impressions!</p>'}
+
+        <!-- Add tasting note -->
+        <div style="background:var(--cream-d);border-radius:var(--radius);padding:16px;margin-top:8px">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Record a Tasting</div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Date</label>
+              <input type="date" id="ag-t-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Rating</label>
+              <select id="ag-t-rating" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem">
+                <option value="0">— unrated —</option>
+                <option value="1">★ (1/5)</option>
+                <option value="2">★★ (2/5)</option>
+                <option value="3">★★★ (3/5)</option>
+                <option value="4">★★★★ (4/5)</option>
+                <option value="5">★★★★★ (5/5)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Color</label>
+              <input type="text" id="ag-t-color" placeholder="e.g. Bright ruby, deep garnet" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Aroma</label>
+              <input type="text" id="ag-t-aroma" placeholder="e.g. Cherry jam, light oak, floral" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Taste</label>
+              <input type="text" id="ag-t-taste" placeholder="e.g. Fruity, balanced, light tannin" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Finish</label>
+              <input type="text" id="ag-t-finish" placeholder="e.g. Clean, medium-long, fruity" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label style="font-size:.78rem">Additional Notes</label>
+            <textarea id="ag-t-notes" placeholder="Overall impression, food pairings, who you shared it with..." style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem;min-height:56px;resize:vertical"></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addTastingLog()">+ Record Tasting</button>
+        </div>
+
+        <div class="section-title">Batch Notes</div>
+        <div class="form-group">
+          <textarea id="ag-notes" placeholder="Long-term observations, what you'd change next time...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Keep tasting notes as the wine evolves. Mark complete when the batch is finished.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveAging()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeAging()">🎉 Mark Batch Complete</button>`
+            : `<button class="btn btn-gold" onclick="saveAging()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function addTastingLog() {
+  const date = document.getElementById('ag-t-date')?.value;
+  if (!date) { showToast('Please enter a tasting date.', 'error'); return; }
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.aging) batch.stages.aging = {};
+  if (!batch.stages.aging.tasting_logs) batch.stages.aging.tasting_logs = [];
+  batch.stages.aging.tasting_logs.push({
+    date:   date,
+    rating: parseInt(document.getElementById('ag-t-rating')?.value) || 0,
+    color:  document.getElementById('ag-t-color')?.value.trim()  || '',
+    aroma:  document.getElementById('ag-t-aroma')?.value.trim()  || '',
+    taste:  document.getElementById('ag-t-taste')?.value.trim()  || '',
+    finish: document.getElementById('ag-t-finish')?.value.trim() || '',
+    notes:  document.getElementById('ag-t-notes')?.value.trim()  || '',
+    logged_at: new Date().toISOString(),
+  });
+  saveData(data);
+  showToast('Tasting note recorded!', 'success');
+  renderDetail(batch);
+}
+
+function deleteTastingLog(index) {
+  if (!confirm('Remove this tasting note?')) return;
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch?.stages?.aging?.tasting_logs) return;
+  batch.stages.aging.tasting_logs.splice(index, 1);
+  saveData(data);
+  renderDetail(batch);
+}
+
+function saveAging(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.aging) batch.stages.aging = {};
+  const ag = batch.stages.aging;
+  ag.start_date         = document.getElementById('ag-start').value;
+  ag.target_date        = document.getElementById('ag-target').value;
+  ag.storage            = document.getElementById('ag-storage').value.trim();
+  ag.bottles_remaining  = document.getElementById('ag-bottles').value;
+  ag.notes              = document.getElementById('ag-notes').value.trim();
+  ag.saved_at           = new Date().toISOString();
+  if (!ag.tasting_logs) ag.tasting_logs = [];
+  if (advance) {
+    if (!batch.completed_stages.includes('aging'))
+      batch.completed_stages.push('aging');
+    batch.current_stage = 'aging'; // stay on aging, just mark complete
+  }
+  saveData(data);
+  showToast(advance ? '🎉 Batch complete! Congratulations, winemaker!' : 'Aging notes saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeAging() { saveAging(true); }
+
 // ─── Completed Stage Summary ──────────────────────────────────────────
 function renderCompletedStageSummary(stageObj, data, batch) {
   const pairs = [];
@@ -2314,7 +2671,25 @@ function renderCompletedStageSummary(stageObj, data, batch) {
     if (data.method)    pairs.push(['Method',  data.method]);
     if (data.clarity)   pairs.push(['Clarity', data.clarity]);
     if (data.so2_ppm)   pairs.push(['Free SO₂', data.so2_ppm + ' ppm']);
-    if (data.end_date)  pairs.push(['Bottling Date', formatDate(data.end_date)]);
+    if (data.end_date)  pairs.push(['Bottled', formatDate(data.end_date)]);
+  }
+  if (stageObj.id === 'bottling') {
+    if (data.bottling_date) pairs.push(['Date',     formatDate(data.bottling_date)]);
+    if (data.bottle_count)  pairs.push(['Bottles',  data.bottle_count]);
+    if (data.bottle_size)   pairs.push(['Size',     data.bottle_size]);
+    if (data.final_sg) {
+      const prep = batch?.stages?.preparation || {};
+      const og = parseFloat(prep.initial_sg);
+      const fg = parseFloat(data.final_sg);
+      if (og && fg) pairs.push(['ABV', ((og - fg) * 131.25).toFixed(1) + '%']);
+    }
+  }
+  if (stageObj.id === 'aging') {
+    const tl = data.tasting_logs || [];
+    if (data.start_date)    pairs.push(['Aging Since',   formatDate(data.start_date)]);
+    if (data.target_date)   pairs.push(['Drink By',      formatDate(data.target_date)]);
+    if (tl.length)          pairs.push(['Tastings',      tl.length]);
+    if (data.bottles_remaining !== undefined) pairs.push(['Bottles Left', data.bottles_remaining]);
   }
   const rows = pairs.map(([k,v]) => `
     <span style="font-size:.82rem;color:var(--muted)">${k}:</span>
