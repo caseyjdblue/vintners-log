@@ -1077,8 +1077,10 @@ function renderStageContent(batch) {
   const stage = batch.current_stage;
   const el = document.getElementById('detail-stage-content');
   switch (stage) {
-    case 'fruit_selection': el.innerHTML = renderFruitSelectionStage(batch); break;
-    case 'methodology':     el.innerHTML = renderMethodologyStage(batch);    break;
+    case 'fruit_selection':        el.innerHTML = renderFruitSelectionStage(batch); break;
+    case 'methodology':            el.innerHTML = renderMethodologyStage(batch);    break;
+    case 'recipe':                 el.innerHTML = renderRecipeStage(batch);         break;
+    case 'preparation':            el.innerHTML = renderPreparationStage(batch);    break;
     default:
       el.innerHTML = `<div class="stage-card">
         <div class="stage-card-header"><h3>${getStageInfo(stage).icon} ${getStageInfo(stage).label}</h3></div>
@@ -1378,6 +1380,350 @@ function saveMethodology(advance) {
 
 function completeMethodology() { saveMethodology(true); }
 
+// ─── Recipe Stage ─────────────────────────────────────────────────────
+function renderRecipeStage(batch) {
+  const d = batch.stages.recipe || {};
+  const isCompleted = batch.completed_stages.includes('recipe');
+  const meth = batch.stages.methodology || {};
+  const gallons = batch.gallons || 1;
+
+  // Default cherry wine recipe (scales with batch size)
+  const defaultIngredients = [
+    { name: 'Sweet Cherries',           amount: (6.5 * gallons).toFixed(1), unit: 'lbs' },
+    { name: 'Granulated Sugar',         amount: (2.0 * gallons).toFixed(1), unit: 'lbs' },
+    { name: 'Water',                    amount: (0.6 * gallons).toFixed(2), unit: 'gallons' },
+    { name: 'Pectic Enzyme',            amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Acid Blend',               amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Yeast Nutrient',           amount: (1.0 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Potassium Metabisulfite',  amount: (0.25 * gallons).toFixed(2), unit: 'tsp' },
+  ];
+  const ingredients = d.ingredients && d.ingredients.length ? d.ingredients : defaultIngredients;
+  const vals = {
+    batch_size:  d.batch_size  || String(gallons),
+    target_og:   d.target_og   || '1.090',
+    target_fg:   d.target_fg   || '1.010',
+    notes:       d.notes       || '',
+  };
+
+  const ingredientRows = ingredients.map((ing, i) => `
+    <tr>
+      <td><input type="text"   class="ing-name"   value="${escHtml(ing.name)}"   placeholder="Ingredient" style="width:100%;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+      <td><input type="number" class="ing-amount" value="${ing.amount}" placeholder="Amt"  step="0.01" style="width:80px;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+      <td>
+        <select class="ing-unit" style="border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem">
+          ${['lbs','oz','g','kg','gallons','quarts','liters','cups','tsp','tbsp','each','packets']
+            .map(u => `<option${u === ing.unit ? ' selected' : ''}>${u}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeIngredientRow(this)" style="padding:4px 8px">✕</button></td>
+    </tr>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🧪 Recipe</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ This stage is complete. Edit and save to update.</div>` : ''}
+        <div class="info-box">
+          🍒 <strong>Cherry wine baseline (per gallon):</strong> 6–7 lbs cherries, 2 lbs sugar, top up with water.
+          For ${gallons} gallons the defaults below scale accordingly.
+          Adjust sugar to hit your target OG. Use a hydrometer to verify before pitching yeast.
+        </div>
+
+        <div class="section-title">Batch Targets</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Batch Size (gallons)</label>
+            <input type="number" id="rec-size" value="${vals.batch_size}" step="0.5" min="0.5" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Target OG (Original Gravity)</label>
+            <input type="number" id="rec-og" value="${vals.target_og}" step="0.001" min="1.000" max="1.200" placeholder="1.090" />
+            <p class="form-hint">1.090 → ~12% ABV when fermented dry</p>
+          </div>
+          <div class="form-group">
+            <label>Target FG (Final Gravity)</label>
+            <input type="number" id="rec-fg" value="${vals.target_fg}" step="0.001" min="0.990" max="1.100" placeholder="1.010" />
+            <p class="form-hint">1.000 = dry; 1.010–1.020 = semi-sweet</p>
+          </div>
+        </div>
+
+        <div class="section-title">Ingredients</div>
+        <div style="overflow-x:auto">
+          <table id="ingredient-table" style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">
+                <th style="text-align:left;padding:4px 8px 8px">Ingredient</th>
+                <th style="text-align:left;padding:4px 8px 8px">Amount</th>
+                <th style="text-align:left;padding:4px 8px 8px">Unit</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="ingredient-rows">${ingredientRows}</tbody>
+          </table>
+        </div>
+        <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="addIngredientRow()">+ Add Ingredient</button>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="rec-notes" placeholder="Sourcing notes, substitutions, special additions...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Build your ingredient list and set gravity targets before crushing.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveRecipe()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeRecipe()">Mark Complete &amp; Next Stage &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveRecipe()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function collectIngredients() {
+  const rows = document.querySelectorAll('#ingredient-rows tr');
+  return Array.from(rows).map(row => ({
+    name:   row.querySelector('.ing-name')?.value.trim()   || '',
+    amount: row.querySelector('.ing-amount')?.value        || '',
+    unit:   row.querySelector('.ing-unit')?.value          || 'lbs',
+  })).filter(r => r.name);
+}
+
+function addIngredientRow() {
+  const tbody = document.getElementById('ingredient-rows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text"   class="ing-name"   placeholder="Ingredient" style="width:100%;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+    <td><input type="number" class="ing-amount" placeholder="Amt" step="0.01" style="width:80px;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+    <td><select class="ing-unit" style="border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem">
+      ${['lbs','oz','g','kg','gallons','quarts','liters','cups','tsp','tbsp','each','packets']
+        .map(u => `<option>${u}</option>`).join('')}
+    </select></td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeIngredientRow(this)" style="padding:4px 8px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function removeIngredientRow(btn) { btn.closest('tr').remove(); }
+
+function saveRecipe(advance) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  batch.stages.recipe = {
+    batch_size:  document.getElementById('rec-size').value,
+    target_og:   document.getElementById('rec-og').value,
+    target_fg:   document.getElementById('rec-fg').value,
+    ingredients: collectIngredients(),
+    notes:       document.getElementById('rec-notes').value.trim(),
+    saved_at:    new Date().toISOString(),
+  };
+  if (advance) {
+    if (!batch.completed_stages.includes('recipe'))
+      batch.completed_stages.push('recipe');
+    batch.current_stage = 'preparation';
+  }
+  saveData(data);
+  showToast(advance ? 'Recipe complete! Moving to Preparation.' : 'Recipe saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeRecipe() { saveRecipe(true); }
+
+// ─── Preparation Stage ─────────────────────────────────────────────────
+function renderPreparationStage(batch) {
+  const d = batch.stages.preparation || {};
+  const isCompleted = batch.completed_stages.includes('preparation');
+  const meth = batch.stages.methodology || {};
+  const rec  = batch.stages.recipe || {};
+  const yeast = meth.yeast || 'Lalvin 71B';
+  const vals = {
+    prep_date:     d.prep_date     || '',
+    crush_method:  d.crush_method  || 'Hand-crushed / destemmed',
+    so2_added:     d.so2_added     !== undefined ? d.so2_added : true,
+    so2_amount:    d.so2_amount    || '0.25',
+    pectic_added:  d.pectic_added  !== undefined ? d.pectic_added : true,
+    pectic_wait_h: d.pectic_wait_h || '12',
+    must_volume:   d.must_volume   || '',
+    initial_sg:    d.initial_sg    || '',
+    initial_ph:    d.initial_ph    || '',
+    initial_ta:    d.initial_ta    || '',
+    must_temp:     d.must_temp     || '',
+    sugar_added:   d.sugar_added   || '',
+    water_added:   d.water_added   || '',
+    yeast_rehydrate: d.yeast_rehydrate !== undefined ? d.yeast_rehydrate : true,
+    pitch_temp:    d.pitch_temp    || '68',
+    notes:         d.notes        || '',
+  };
+
+  const checkAttr = (v) => v ? 'checked' : '';
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>⚗️ Preparation</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ This stage is complete. Edit and save to update.</div>` : ''}
+        <div class="info-box">
+          🍒 <strong>Cherry prep checklist:</strong> Wash and destem cherries → crush or freeze/thaw to break cells →
+          add Campden and pectic enzyme to must → wait 12–24 hours before pitching yeast.
+          Take initial SG reading to verify your target OG; adjust sugar if needed.
+        </div>
+
+        <div class="section-title">Crush &amp; Must Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Preparation Date</label>
+            <input type="date" id="prep-date" value="${vals.prep_date}" />
+          </div>
+          <div class="form-group">
+            <label>Crush Method</label>
+            <select id="prep-crush">
+              ${['Hand-crushed / destemmed','Freeze then thaw (cell break)','Food processor (pulse)','Cherry pitter + crush','Whole fruit (no crush)','Other']
+                .map(o => `<option${o === vals.crush_method ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Must Volume (gallons)</label>
+            <input type="number" id="prep-vol" value="${vals.must_volume}" placeholder="After crushing + water addition" step="0.1" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Must Temperature (°F)</label>
+            <input type="number" id="prep-temp" value="${vals.must_temp}" placeholder="65–72°F ideal" step="1" />
+          </div>
+        </div>
+
+        <div class="section-title">Additives</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="prep-so2" ${checkAttr(vals.so2_added)} style="width:16px;height:16px" />
+            Added SO₂ (Campden / K-Meta)
+          </label>
+          <div class="form-group" style="margin:0">
+            <input type="number" id="prep-so2-amt" value="${vals.so2_amount}" placeholder="tsp" step="0.05" min="0" style="width:100%" />
+            <p class="form-hint" style="margin:0">Amount in tsp</p>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="prep-pectic" ${checkAttr(vals.pectic_added)} style="width:16px;height:16px" />
+            Added Pectic Enzyme
+          </label>
+          <div class="form-group" style="margin:0">
+            <input type="number" id="prep-pectic-wait" value="${vals.pectic_wait_h}" placeholder="hrs" step="1" min="0" style="width:100%" />
+            <p class="form-hint" style="margin:0">Wait time (hours) before yeast</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Sugar Added (lbs)</label>
+            <input type="number" id="prep-sugar" value="${vals.sugar_added}" placeholder="0.0" step="0.1" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Water Added (gallons)</label>
+            <input type="number" id="prep-water" value="${vals.water_added}" placeholder="0.0" step="0.1" min="0" />
+          </div>
+        </div>
+
+        <div class="section-title">Initial Readings</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Initial SG (OG)</label>
+            <input type="number" id="prep-sg" value="${vals.initial_sg}" placeholder="e.g. 1.090" step="0.001" />
+            <p class="form-hint">Target: ${rec.target_og || '1.090'}</p>
+          </div>
+          <div class="form-group">
+            <label>Initial pH</label>
+            <input type="number" id="prep-ph" value="${vals.initial_ph}" placeholder="3.3–3.8 ideal" step="0.01" min="0" max="14" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Titratable Acidity (g/L)</label>
+            <input type="number" id="prep-ta" value="${vals.initial_ta}" placeholder="6–8 g/L for fruit wine" step="0.1" min="0" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <div class="section-title">Yeast Pitch</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Yeast Strain</label>
+            <input type="text" id="prep-yeast-display" value="${escHtml(yeast)}" readonly
+              style="background:var(--cream-d);color:var(--ink-l)" />
+            <p class="form-hint">Set in Methodology stage</p>
+          </div>
+          <div class="form-group">
+            <label>Pitch Temperature (°F)</label>
+            <input type="number" id="prep-pitch-temp" value="${vals.pitch_temp}" placeholder="68" step="1" />
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:14px">
+          <input type="checkbox" id="prep-rehydrate" ${checkAttr(vals.yeast_rehydrate)} style="width:16px;height:16px" />
+          Rehydrated yeast in 104°F water before pitching
+        </label>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="prep-notes" placeholder="Condition of fruit, any adjustments made, observations...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Complete preparation and confirm readings before starting fermentation.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="savePreparation()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completePreparation()">Pitch Yeast &amp; Start Fermentation &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="savePreparation()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function savePreparation(advance) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  batch.stages.preparation = {
+    prep_date:      document.getElementById('prep-date').value,
+    crush_method:   document.getElementById('prep-crush').value,
+    so2_added:      document.getElementById('prep-so2').checked,
+    so2_amount:     document.getElementById('prep-so2-amt').value,
+    pectic_added:   document.getElementById('prep-pectic').checked,
+    pectic_wait_h:  document.getElementById('prep-pectic-wait').value,
+    must_volume:    document.getElementById('prep-vol').value,
+    must_temp:      document.getElementById('prep-temp').value,
+    sugar_added:    document.getElementById('prep-sugar').value,
+    water_added:    document.getElementById('prep-water').value,
+    initial_sg:     document.getElementById('prep-sg').value,
+    initial_ph:     document.getElementById('prep-ph').value,
+    initial_ta:     document.getElementById('prep-ta').value,
+    pitch_temp:     document.getElementById('prep-pitch-temp').value,
+    yeast_rehydrate: document.getElementById('prep-rehydrate').checked,
+    notes:          document.getElementById('prep-notes').value.trim(),
+    saved_at:       new Date().toISOString(),
+  };
+  if (advance) {
+    if (!batch.completed_stages.includes('preparation'))
+      batch.completed_stages.push('preparation');
+    batch.current_stage = 'primary_fermentation';
+  }
+  saveData(data);
+  showToast(advance ? 'Preparation complete! Primary fermentation started.' : 'Preparation saved.', 'success');
+  renderDetail(batch);
+}
+
+function completePreparation() { savePreparation(true); }
+
 // ─── Completed Stage Summary ──────────────────────────────────────────
 function renderCompletedStageSummary(stageObj, data, batch) {
   const pairs = [];
@@ -1394,6 +1740,18 @@ function renderCompletedStageSummary(stageObj, data, batch) {
     if (data.sweetness)  pairs.push(['Target', data.sweetness]);
     if (data.target_abv) pairs.push(['Target ABV', data.target_abv + '%']);
     if (data.yeast)      pairs.push(['Yeast', data.yeast]);
+  }
+  if (stageObj.id === 'recipe') {
+    if (data.batch_size) pairs.push(['Batch Size', data.batch_size + ' gal']);
+    if (data.target_og)  pairs.push(['Target OG',  data.target_og]);
+    if (data.target_fg)  pairs.push(['Target FG',  data.target_fg]);
+    if (data.ingredients) pairs.push(['Ingredients', data.ingredients.length + ' items']);
+  }
+  if (stageObj.id === 'preparation') {
+    if (data.prep_date)  pairs.push(['Date',        formatDate(data.prep_date)]);
+    if (data.initial_sg) pairs.push(['OG Measured', data.initial_sg]);
+    if (data.initial_ph) pairs.push(['pH',          data.initial_ph]);
+    if (data.crush_method) pairs.push(['Crush',     data.crush_method]);
   }
   const rows = pairs.map(([k,v]) => `
     <span style="font-size:.82rem;color:var(--muted)">${k}:</span>
