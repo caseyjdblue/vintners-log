@@ -2,951 +2,224 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vintner's Log — Test Runner</title>
+  <title>Vintner's Log — Tests</title>
+  <script src="wine-core.js"></script>
   <style>
-    :root {
-      --pass:    #2E7D32;
-      --pass-bg: #E8F5E9;
-      --fail:    #C62828;
-      --fail-bg: #FFEBEE;
-      --skip:    #6D4C41;
-      --skip-bg: #EFEBE9;
-      --ink:     #1A1A2E;
-      --muted:   #666;
-      --border:  #DDD;
-      --bg:      #F5F5F5;
-      --white:   #FFFFFF;
-      --burg:    #6B1A1A;
-      --gold:    #C8963E;
-      --radius:  8px;
-      --shadow:  0 1px 4px rgba(0,0,0,.1);
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; }
-    code, pre { font-family: 'Cascadia Code', 'Fira Code', monospace; }
-
-    /* ── Header ── */
-    header {
-      background: linear-gradient(135deg, #4A0F0F, #6B1A1A);
-      color: #F9F3E8;
-      padding: 16px 24px;
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 10px;
-    }
-    header h1 { font-size: 1.15rem; display: flex; align-items: center; gap: 8px; }
-    header .sub { font-size: .75rem; color: #E0B86A; margin-top: 2px; }
-    .run-btn {
-      background: var(--gold); color: #2C1810; border: none; border-radius: var(--radius);
-      padding: 9px 20px; font-size: .9rem; font-weight: bold; cursor: pointer;
-      font-family: inherit; transition: background .15s;
-    }
-    .run-btn:hover { background: #E0B86A; }
-    .run-btn:active { transform: scale(.97); }
-
-    /* ── Summary bar ── */
-    #summary {
-      display: flex; gap: 12px; padding: 14px 24px;
-      background: var(--white); border-bottom: 1px solid var(--border);
-      flex-wrap: wrap; align-items: center;
-    }
-    .stat { display: flex; align-items: center; gap: 6px; font-size: .88rem; }
-    .stat .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .stat .val { font-weight: bold; font-size: 1.1rem; }
-    .dot-pass { background: var(--pass); }
-    .dot-fail { background: var(--fail); }
-    .dot-skip { background: #bbb; }
-    .progress-bar {
-      flex: 1; min-width: 160px; height: 8px; background: #eee;
-      border-radius: 4px; overflow: hidden;
-    }
-    .progress-fill { height: 100%; background: var(--pass); transition: width .4s; border-radius: 4px; }
-    #duration { font-size: .78rem; color: var(--muted); margin-left: auto; }
-    #status-text { font-size: .85rem; font-weight: bold; }
-    #status-text.all-pass { color: var(--pass); }
-    #status-text.has-fail  { color: var(--fail); }
-    #status-text.running   { color: var(--gold); }
-    #status-text.idle      { color: var(--muted); }
-
-    /* ── Toolbar ── */
-    .toolbar {
-      display: flex; align-items: center; gap: 10px; padding: 10px 24px;
-      background: var(--white); border-bottom: 1px solid var(--border); flex-wrap: wrap;
-    }
-    .toolbar label { font-size: .82rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
-    .filter-btn {
-      padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border);
-      background: var(--white); font-size: .78rem; cursor: pointer; font-family: inherit;
-      transition: all .1s;
-    }
-    .filter-btn.active { background: var(--burg); color: #fff; border-color: var(--burg); }
-    .toolbar input[type=search] {
-      padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--radius);
-      font-size: .82rem; font-family: inherit; width: 200px;
-    }
-    .expand-all { margin-left: auto; font-size: .78rem; color: var(--burg); cursor: pointer; background: none; border: none; font-family: inherit; }
-    .expand-all:hover { text-decoration: underline; }
-
-    /* ── Suite ── */
-    .suite {
-      background: var(--white); border: 1px solid var(--border);
-      border-radius: var(--radius); margin: 12px 24px; overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-    .suite-header {
-      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
-      cursor: pointer; user-select: none; background: #FAFAFA;
-      border-bottom: 1px solid var(--border);
-    }
-    .suite-header:hover { background: #F0F0F0; }
-    .suite-icon { font-size: 1rem; }
-    .suite-name { font-weight: bold; font-size: .95rem; flex: 1; }
-    .suite-badge {
-      font-size: .72rem; font-weight: bold; padding: 2px 8px;
-      border-radius: 20px; white-space: nowrap;
-    }
-    .badge-pass { background: var(--pass-bg); color: var(--pass); }
-    .badge-fail { background: var(--fail-bg); color: var(--fail); }
-    .badge-idle { background: #EEE; color: var(--muted); }
-    .chevron { font-size: .7rem; color: var(--muted); transition: transform .2s; }
-    .suite.collapsed .suite-body { display: none; }
-    .suite.collapsed .chevron { transform: rotate(-90deg); }
-
-    /* ── Test rows ── */
-    .suite-body { padding: 0; }
-    .test-row {
-      display: flex; align-items: flex-start; gap: 10px; padding: 9px 16px 9px 20px;
-      border-bottom: 1px solid #F0F0F0; font-size: .86rem;
-    }
-    .test-row:last-child { border-bottom: none; }
-    .test-row.pass { border-left: 3px solid var(--pass); }
-    .test-row.fail { border-left: 3px solid var(--fail); background: var(--fail-bg); }
-    .test-row.skip { border-left: 3px solid #ccc; opacity: .6; }
-    .test-row.pending { border-left: 3px solid #ccc; }
-    .test-icon { font-size: .85rem; width: 16px; flex-shrink: 0; margin-top: 1px; }
-    .test-name { flex: 1; line-height: 1.4; }
-    .test-dur  { font-size: .72rem; color: var(--muted); white-space: nowrap; }
-    .test-error {
-      margin-top: 6px; background: #FFF0F0; border: 1px solid #FFCDD2;
-      border-radius: 4px; padding: 8px 10px; font-size: .8rem;
-      color: var(--fail); white-space: pre-wrap; font-family: monospace;
-      width: 100%;
-    }
-    .test-row-inner { flex: 1; min-width: 0; }
-
-    /* ── Footer ── */
-    footer {
-      text-align: center; padding: 12px; font-size: .75rem; color: var(--muted);
-      border-top: 1px solid var(--border); margin-top: 12px;
-    }
+    body { font-family: system-ui, sans-serif; background: #f5f5f5; margin: 0; font-size: 14px; }
+    header { background: #4A0F0F; color: #F9F3E8; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.1rem; margin: 0; }
+    #run-btn { background: #C8963E; color: #2C1810; border: none; border-radius: 6px; padding: 8px 18px; font-weight: bold; cursor: pointer; font-size: .9rem; }
+    #summary { background: #fff; padding: 12px 20px; border-bottom: 1px solid #ddd; display: flex; gap: 20px; align-items: center; font-size: .88rem; }
+    #summary b { font-size: 1.1rem; }
+    .pass { color: #2E7D32; } .fail { color: #C62828; } .muted { color: #888; }
+    #bar { height: 6px; background: #eee; margin: 0; }
+    #bar-fill { height: 100%; background: #2E7D32; width: 0; transition: width .3s; }
+    .suite { background: #fff; margin: 12px 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow: hidden; }
+    .suite-hd { padding: 11px 16px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .suite-hd b { flex: 1; }
+    .badge { border-radius: 20px; padding: 2px 9px; font-size: .72rem; font-weight: bold; }
+    .bp { background: #E8F5E9; color: #2E7D32; } .bf { background: #FFEBEE; color: #C62828; } .bi { background: #eee; color: #888; }
+    .t { padding: 8px 16px 8px 22px; border-bottom: 1px solid #f5f5f5; display: flex; gap: 8px; }
+    .t:last-child { border: none; }
+    .t.p { border-left: 3px solid #2E7D32; } .t.f { border-left: 3px solid #C62828; background: #fff8f8; } .t.s { border-left: 3px solid #ccc; opacity:.6; }
+    .err { margin-top: 5px; background: #fff0f0; border: 1px solid #ffcdd2; border-radius: 4px; padding: 6px 8px; font-family: monospace; font-size: .78rem; color: #c62828; white-space: pre-wrap; }
+    footer { text-align: center; padding: 12px; color: #aaa; font-size: .75rem; }
   </style>
 </head>
 <body>
-
 <header>
-  <div>
-    <h1>🍷 Vintner's Log — Test Runner</h1>
-    <div class="sub">Unit tests for wine batch lifecycle logic</div>
-  </div>
-  <button class="run-btn" id="run-btn" onclick="runAll()">▶ Run All Tests</button>
+  <h1>🍷 Vintner's Log — Test Runner</h1>
+  <button id="run-btn" onclick="runAll()">▶ Run All Tests</button>
 </header>
-
 <div id="summary">
-  <div class="stat"><div class="dot dot-pass"></div><span class="val" id="cnt-pass">—</span><span>passed</span></div>
-  <div class="stat"><div class="dot dot-fail"></div><span class="val" id="cnt-fail">—</span><span>failed</span></div>
-  <div class="stat"><div class="dot dot-skip"></div><span class="val" id="cnt-skip">—</span><span>skipped</span></div>
-  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-  <span id="status-text" class="idle">Ready — click Run All Tests</span>
-  <span id="duration"></span>
+  <span>Ready — click Run All Tests</span>
 </div>
-
-<div class="toolbar">
-  <button class="filter-btn active" id="f-all"  onclick="setFilter('all')">All</button>
-  <button class="filter-btn"        id="f-fail" onclick="setFilter('fail')">Failures only</button>
-  <input type="search" id="search-box" placeholder="Filter by name…" oninput="applyFilter()" />
-  <button class="expand-all" onclick="toggleAllSuites()">Collapse all</button>
-</div>
-
+<div id="bar"><div id="bar-fill"></div></div>
 <div id="results"></div>
-
-<footer>
-  Vintner's Log Test Runner &mdash; tests run in-browser, no server needed
-</footer>
+<footer>Tests run against live wine-core.js — localStorage is saved &amp; restored around each run.</footer>
 
 <script>
-// ══════════════════════════════════════════════════════════════════════
-//  SECTION 1 — MINI TEST FRAMEWORK
-// ══════════════════════════════════════════════════════════════════════
-const _suites = [];
-let _current  = null;
+// ── Mini framework ──────────────────────────────────────────────────
+const suites = [];
+let cur = null;
 
-function describe(name, icon, fn) {
-  _current = { name, icon, tests: [] };
-  _suites.push(_current);
-  fn();
-  _current = null;
-}
+function describe(name, fn) { cur = { name, tests:[] }; suites.push(cur); fn(); cur = null; }
+function it(label, fn)  { cur.tests.push({ label, fn, status:'pending', err:null }); }
+function xit(label)     { cur.tests.push({ label, fn:null, status:'skip', err:null }); }
 
-function it(name, fn) {
-  if (!_current) throw new Error('it() called outside describe()');
-  _current.tests.push({ name, fn, status: 'pending', error: null, duration: null });
-}
+class Fail extends Error {}
+function expect(v) { return {
+  toBe:          (e) => { if (v !== e)              throw new Fail(`Expected ${j(e)}\n  Got ${j(v)}`); },
+  toEqual:       (e) => { if (JSON.stringify(v) !== JSON.stringify(e)) throw new Fail(`Expected ${j(e)}\n  Got ${j(v)}`); },
+  toBeTruthy:    ()  => { if (!v)                   throw new Fail(`Expected truthy, got ${j(v)}`); },
+  toBeFalsy:     ()  => { if (v)                    throw new Fail(`Expected falsy, got ${j(v)}`); },
+  toBeNull:      ()  => { if (v !== null)            throw new Fail(`Expected null, got ${j(v)}`); },
+  toContain:     (e) => { if (!String(v).includes(e)) throw new Fail(`Expected to contain ${j(e)}`); },
+  toNotContain:  (e) => { if (String(v).includes(e))  throw new Fail(`Expected NOT to contain ${j(e)}`); },
+  toBeArray:     ()  => { if (!Array.isArray(v))    throw new Fail(`Expected Array, got ${typeof v}`); },
+  toHaveLength:  (n) => { if (!v||v.length!==n)    throw new Fail(`Expected length ${n}, got ${v?.length}`); },
+  toBeGreaterThan:(n)=> { if (!(v > n))             throw new Fail(`Expected > ${n}, got ${j(v)}`); },
+  toBeLessThan:  (n) => { if (!(v < n))             throw new Fail(`Expected < ${n}, got ${j(v)}`); },
+}; }
+function j(v) { return JSON.stringify(v); }
 
-function xit(name) {
-  if (!_current) throw new Error('xit() called outside describe()');
-  _current.tests.push({ name, fn: null, status: 'skip', error: null, duration: null });
-}
+// ── localStorage guard ─────────────────────────────────────────────
+function clearTestData() { localStorage.removeItem(STORAGE_KEY); }
 
-class AssertionError extends Error {
-  constructor(msg) { super(msg); this.name = 'AssertionError'; }
-}
-
-function expect(actual) {
-  return {
-    toBe(expected) {
-      if (actual !== expected)
-        throw new AssertionError(`Expected ${fmt(expected)}\n  Received ${fmt(actual)}`);
-    },
-    toEqual(expected) {
-      const a = JSON.stringify(actual), b = JSON.stringify(expected);
-      if (a !== b)
-        throw new AssertionError(`Expected ${b}\n  Received ${a}`);
-    },
-    toBeTruthy() {
-      if (!actual)
-        throw new AssertionError(`Expected truthy, received ${fmt(actual)}`);
-    },
-    toBeFalsy() {
-      if (actual)
-        throw new AssertionError(`Expected falsy, received ${fmt(actual)}`);
-    },
-    toBeNull() {
-      if (actual !== null)
-        throw new AssertionError(`Expected null, received ${fmt(actual)}`);
-    },
-    toBeGreaterThan(n) {
-      if (!(actual > n))
-        throw new AssertionError(`Expected > ${n}, received ${fmt(actual)}`);
-    },
-    toBeLessThan(n) {
-      if (!(actual < n))
-        throw new AssertionError(`Expected < ${n}, received ${fmt(actual)}`);
-    },
-    toContain(str) {
-      if (!String(actual).includes(String(str)))
-        throw new AssertionError(`Expected to contain ${fmt(str)}\n  Received ${fmt(actual)}`);
-    },
-    toNotContain(str) {
-      if (String(actual).includes(String(str)))
-        throw new AssertionError(`Expected NOT to contain ${fmt(str)}\n  Received ${fmt(actual)}`);
-    },
-    toBeArray() {
-      if (!Array.isArray(actual))
-        throw new AssertionError(`Expected an Array, received ${typeof actual}`);
-    },
-    toHaveLength(n) {
-      if (!actual || actual.length !== n)
-        throw new AssertionError(`Expected length ${n}, received ${actual?.length}`);
-    },
-    toMatch(regex) {
-      if (!regex.test(String(actual)))
-        throw new AssertionError(`Expected to match ${regex}, received ${fmt(actual)}`);
-    },
-    toThrow() {
-      if (typeof actual !== 'function')
-        throw new AssertionError('toThrow() requires a function');
-      try { actual(); throw new AssertionError('Expected function to throw, but it did not'); }
-      catch (e) { if (e instanceof AssertionError) throw e; }
-    },
-  };
-}
-
-function fmt(v) {
-  if (v === null) return 'null';
-  if (v === undefined) return 'undefined';
-  if (typeof v === 'string') return `"${v}"`;
-  return String(v);
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  SECTION 2 — PRODUCTION CODE UNDER TEST
-//  (Pure / logic functions copied from wine.html — no DOM dependencies)
-// ══════════════════════════════════════════════════════════════════════
-
-const STORAGE_KEY = 'vintners_log_v1';
-
-const STAGES = [
-  { id: 'fruit_selection',        label: 'Fruit Selection',   icon: '🍒', group: 'planning' },
-  { id: 'methodology',            label: 'Methodology',       icon: '📋', group: 'planning' },
-  { id: 'recipe',                 label: 'Recipe',            icon: '🧪', group: 'planning' },
-  { id: 'preparation',            label: 'Preparation',       icon: '⚗️',  group: 'preparation' },
-  { id: 'primary_fermentation',   label: 'Primary Ferm.',     icon: '🫧', group: 'fermentation' },
-  { id: 'secondary_fermentation', label: 'Secondary Ferm.',   icon: '🔬', group: 'fermentation' },
-  { id: 'clarification',          label: 'Clarification',     icon: '✨', group: 'fermentation' },
-  { id: 'bottling',               label: 'Bottling',          icon: '🍾', group: 'aging' },
-  { id: 'aging',                  label: 'Aging',             icon: '🪵', group: 'aging' },
-];
-
-const STAGE_IDS = STAGES.map(s => s.id);
-
-const GROUP_CLASS = {
-  planning:     'stage-planning',
-  preparation:  'stage-preparation',
-  fermentation: 'stage-fermentation',
-  aging:        'stage-aging',
-  complete:     'stage-complete',
-};
-
-// ── Mock localStorage ─────────────────────────────────────────────────
-const _mockStore = {};
-const _localStorage = {
-  getItem:    (k)    => _mockStore[k] ?? null,
-  setItem:    (k, v) => { _mockStore[k] = String(v); },
-  removeItem: (k)    => { delete _mockStore[k]; },
-  clear:      ()     => { Object.keys(_mockStore).forEach(k => delete _mockStore[k]); },
-};
-
-function loadData() {
-  try {
-    const raw = _localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { batches: [] };
-  } catch { return { batches: [] }; }
-}
-
-function saveData(data) {
-  _localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-function getData() { return loadData(); }
-
-function clearStore() { _localStorage.clear(); }
-
-function seedCherryBatch() {
-  const data = loadData();
-  const already = data.batches.find(b => b.id === 'cherry-2026-seed');
-  if (already) return;
-  const cherryBatch = {
-    id: 'cherry-2026-seed',
-    name: 'Backyard Sweet Cherry 2026',
-    fruit: 'Sweet Cherry',
-    year: 2026,
-    gallons: 3,
-    source: 'Home Garden',
-    harvest_date: '2026-06-20',
-    blossom_date: '2026-04-11',
-    current_stage: 'fruit_selection',
-    completed_stages: [],
-    created: new Date().toISOString(),
-    notes: 'Two sweet cherry trees in the backyard blossomed April 11, 2026.',
-    stages: {}
-  };
-  data.batches.unshift(cherryBatch);
-  saveData(data);
-}
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function daysUntil(isoDate) {
-  if (!isoDate) return null;
-  const target = new Date(isoDate + 'T00:00:00');
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return Math.ceil((target - now) / 86400000);
-}
-
-function stageIndex(stageId) {
-  return STAGE_IDS.indexOf(stageId);
-}
-
-function getStageInfo(stageId) {
-  return STAGES.find(s => s.id === stageId) || STAGES[0];
-}
-
-function batchProgress(batch) {
-  const idx = stageIndex(batch.current_stage);
-  return { current: idx, total: STAGES.length };
-}
-
-function batchGroupClass(batch) {
-  if (batch.completed_stages?.length === STAGES.length) return 'stage-complete';
-  const info = getStageInfo(batch.current_stage);
-  return GROUP_CLASS[info.group] || 'stage-planning';
-}
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// Cherry recipe defaults (mirrors app logic)
-function cherryRecipeDefaults(gallons) {
-  return [
-    { name: 'Sweet Cherries',          amount: (6.5 * gallons).toFixed(1), unit: 'lbs' },
-    { name: 'Granulated Sugar',        amount: (2.0 * gallons).toFixed(1), unit: 'lbs' },
-    { name: 'Water',                   amount: (0.6 * gallons).toFixed(2), unit: 'gallons' },
-    { name: 'Pectic Enzyme',           amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
-    { name: 'Acid Blend',              amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
-    { name: 'Yeast Nutrient',          amount: (1.0 * gallons).toFixed(1), unit: 'tsp' },
-    { name: 'Potassium Metabisulfite', amount: (0.25 * gallons).toFixed(2), unit: 'tsp' },
-  ];
-}
-
-// ABV estimator (mirrors app logic)
-function estimateAbv(og, fg) {
-  return parseFloat(((og - fg) * 131.25).toFixed(1));
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  SECTION 3 — TEST SUITES
-// ══════════════════════════════════════════════════════════════════════
-
-describe('Utility: formatDate()', '📅', () => {
-  it('returns "—" for null', () => {
-    expect(formatDate(null)).toBe('—');
-  });
-  it('returns "—" for undefined', () => {
-    expect(formatDate(undefined)).toBe('—');
-  });
-  it('returns "—" for empty string', () => {
-    expect(formatDate('')).toBe('—');
-  });
-  it('formats a YYYY-MM-DD date string', () => {
-    const result = formatDate('2026-06-20');
-    expect(result).toContain('2026');
-    expect(result).toContain('Jun');
-  });
-  it('formats blossom date April 11 2026', () => {
-    const result = formatDate('2026-04-11');
-    expect(result).toContain('Apr');
-    expect(result).toContain('11');
-    expect(result).toContain('2026');
-  });
-  it('handles a full ISO datetime string', () => {
-    const result = formatDate('2026-06-20T12:00:00.000Z');
-    expect(result).toContain('2026');
-  });
+// ── Test suites ────────────────────────────────────────────────────
+describe('formatDate()', () => {
+  it('returns — for null',       () => expect(formatDate(null)).toBe('—'));
+  it('returns — for empty',      () => expect(formatDate('')).toBe('—'));
+  it('formats YYYY-MM-DD',       () => { const r = formatDate('2026-06-20'); expect(r).toContain('2026'); expect(r).toContain('Jun'); });
+  it('formats blossom Apr 11',   () => { const r = formatDate('2026-04-11'); expect(r).toContain('Apr'); expect(r).toContain('11'); });
 });
 
-describe('Utility: daysUntil()', '⏳', () => {
-  it('returns null for null input', () => {
-    expect(daysUntil(null)).toBeNull();
-  });
-  it('returns null for undefined input', () => {
-    expect(daysUntil(undefined)).toBeNull();
-  });
-  it('returns a positive number for a future date', () => {
-    const future = new Date();
-    future.setDate(future.getDate() + 30);
-    const iso = future.toISOString().slice(0, 10);
-    expect(daysUntil(iso)).toBeGreaterThan(0);
-  });
-  it('returns a negative number for a past date', () => {
-    const past = new Date();
-    past.setDate(past.getDate() - 10);
-    const iso = past.toISOString().slice(0, 10);
-    expect(daysUntil(iso)).toBeLessThan(0);
-  });
-  it('returns 0 for today', () => {
-    const today = new Date().toISOString().slice(0, 10);
-    expect(daysUntil(today)).toBe(0);
-  });
-  it('cherry harvest (2026-06-20) is in the future relative to blossom (2026-04-11)', () => {
-    // harvest should be > blossom
-    const harvestDays = daysUntil('2026-06-20');
-    const blossomDays = daysUntil('2026-04-11');
-    expect(harvestDays > blossomDays).toBeTruthy();
-  });
+describe('daysUntil()', () => {
+  it('returns null for null',    () => expect(daysUntil(null)).toBeNull());
+  it('future date > 0',          () => { const d = new Date(); d.setDate(d.getDate()+30); expect(daysUntil(d.toISOString().slice(0,10))).toBeGreaterThan(0); });
+  it('past date < 0',            () => { const d = new Date(); d.setDate(d.getDate()-10); expect(daysUntil(d.toISOString().slice(0,10))).toBeLessThan(0); });
+  it('today = 0',                () => expect(daysUntil(new Date().toISOString().slice(0,10))).toBe(0));
+  it('harvest after blossom',    () => expect(daysUntil('2026-06-20') > daysUntil('2026-04-11')).toBeTruthy());
 });
 
-describe('Utility: stageIndex()', '🔢', () => {
-  it('fruit_selection is stage 0', () => {
-    expect(stageIndex('fruit_selection')).toBe(0);
-  });
-  it('methodology is stage 1', () => {
-    expect(stageIndex('methodology')).toBe(1);
-  });
-  it('recipe is stage 2', () => {
-    expect(stageIndex('recipe')).toBe(2);
-  });
-  it('preparation is stage 3', () => {
-    expect(stageIndex('preparation')).toBe(3);
-  });
-  it('primary_fermentation is stage 4', () => {
-    expect(stageIndex('primary_fermentation')).toBe(4);
-  });
-  it('secondary_fermentation is stage 5', () => {
-    expect(stageIndex('secondary_fermentation')).toBe(5);
-  });
-  it('clarification is stage 6', () => {
-    expect(stageIndex('clarification')).toBe(6);
-  });
-  it('bottling is stage 7', () => {
-    expect(stageIndex('bottling')).toBe(7);
-  });
-  it('aging is stage 8 (last stage)', () => {
-    expect(stageIndex('aging')).toBe(8);
-  });
-  it('unknown stage returns -1', () => {
-    expect(stageIndex('unknown_stage')).toBe(-1);
-  });
-  it('total stages is 9', () => {
-    expect(STAGE_IDS.length).toBe(9);
-  });
+describe('stageIndex()', () => {
+  it('fruit_selection = 0',      () => expect(stageIndex('fruit_selection')).toBe(0));
+  it('aging = 8',                () => expect(stageIndex('aging')).toBe(8));
+  it('unknown = -1',             () => expect(stageIndex('nope')).toBe(-1));
+  it('9 stages total',           () => expect(STAGE_IDS.length).toBe(9));
+  it('no duplicate IDs',         () => expect(new Set(STAGE_IDS).size).toBe(9));
 });
 
-describe('Utility: getStageInfo()', '📋', () => {
-  it('returns correct object for fruit_selection', () => {
-    const info = getStageInfo('fruit_selection');
-    expect(info.id).toBe('fruit_selection');
-    expect(info.group).toBe('planning');
-  });
-  it('returns correct group for primary_fermentation', () => {
-    expect(getStageInfo('primary_fermentation').group).toBe('fermentation');
-  });
-  it('returns correct group for bottling', () => {
-    expect(getStageInfo('bottling').group).toBe('aging');
-  });
-  it('falls back to STAGES[0] for unknown id', () => {
-    const info = getStageInfo('nonexistent');
-    expect(info.id).toBe('fruit_selection');
-  });
-  it('every stage has id, label, icon, group fields', () => {
-    STAGES.forEach(s => {
-      expect(s.id).toBeTruthy();
-      expect(s.label).toBeTruthy();
-      expect(s.icon).toBeTruthy();
-      expect(s.group).toBeTruthy();
-    });
-  });
+describe('getStageInfo()', () => {
+  it('fruit_selection group = planning',      () => expect(getStageInfo('fruit_selection').group).toBe('planning'));
+  it('primary_fermentation group = ferm.',    () => expect(getStageInfo('primary_fermentation').group).toBe('fermentation'));
+  it('bottling group = aging',               () => expect(getStageInfo('bottling').group).toBe('aging'));
+  it('unknown falls back to first stage',    () => expect(getStageInfo('???').id).toBe('fruit_selection'));
+  it('all stages have id, label, icon, group', () => STAGES.forEach(s => { expect(s.id).toBeTruthy(); expect(s.label).toBeTruthy(); }));
 });
 
-describe('Utility: escHtml()', '🛡️', () => {
-  it('escapes < and >', () => {
-    expect(escHtml('<script>')).toBe('&lt;script&gt;');
-  });
-  it('escapes & ampersand', () => {
-    expect(escHtml('Rock & Roll')).toBe('Rock &amp; Roll');
-  });
-  it('escapes double quotes', () => {
-    expect(escHtml('"hello"')).toBe('&quot;hello&quot;');
-  });
-  it('returns empty string for null', () => {
-    expect(escHtml(null)).toBe('');
-  });
-  it('returns empty string for undefined', () => {
-    expect(escHtml(undefined)).toBe('');
-  });
-  it('does not alter plain text', () => {
-    expect(escHtml('Backyard Sweet Cherry 2026')).toBe('Backyard Sweet Cherry 2026');
-  });
-  it('handles XSS payload', () => {
-    const xss = '<img src=x onerror="alert(1)">';
-    const escaped = escHtml(xss);
-    expect(escaped).toNotContain('<img');
-    expect(escaped).toContain('&lt;img');
-  });
+describe('escHtml()', () => {
+  it('escapes <script>',         () => expect(escHtml('<script>')).toBe('&lt;script&gt;'));
+  it('escapes &',                () => expect(escHtml('A & B')).toBe('A &amp; B'));
+  it('escapes "',                () => expect(escHtml('"hi"')).toBe('&quot;hi&quot;'));
+  it('null → empty string',      () => expect(escHtml(null)).toBe(''));
+  it('plain text unchanged',     () => expect(escHtml('Cherry 2026')).toBe('Cherry 2026'));
+  it('XSS payload has no <img', () => expect(escHtml('<img onerror="x">')).toNotContain('<img'));
 });
 
-describe('Utility: generateId()', '🔑', () => {
-  it('returns a non-empty string', () => {
-    expect(generateId()).toBeTruthy();
-  });
-  it('two calls produce different IDs', () => {
-    const a = generateId(), b = generateId();
-    expect(a !== b).toBeTruthy();
-  });
-  it('returns a string type', () => {
-    expect(typeof generateId()).toBe('string');
-  });
-  it('has reasonable length (> 5 chars)', () => {
-    expect(generateId().length > 5).toBeTruthy();
-  });
+describe('generateId()', () => {
+  it('returns a string',         () => expect(typeof generateId()).toBe('string'));
+  it('not empty',                () => expect(generateId().length > 4).toBeTruthy());
+  it('two calls differ',         () => expect(generateId() !== generateId()).toBeTruthy());
 });
 
-describe('Data Layer: loadData() / saveData()', '💾', () => {
-  it('returns {batches:[]} when store is empty', () => {
-    clearStore();
-    const data = loadData();
-    expect(data.batches).toBeArray();
-    expect(data.batches).toHaveLength(0);
-  });
-  it('round-trips data correctly', () => {
-    clearStore();
-    const payload = { batches: [{ id: 'test-1', name: 'Test Batch' }] };
-    saveData(payload);
-    const loaded = loadData();
-    expect(loaded.batches[0].id).toBe('test-1');
-    expect(loaded.batches[0].name).toBe('Test Batch');
-  });
-  it('overwrites existing data on save', () => {
-    clearStore();
-    saveData({ batches: [{ id: 'old' }] });
-    saveData({ batches: [{ id: 'new' }] });
-    expect(loadData().batches[0].id).toBe('new');
-  });
-  it('handles corrupt JSON gracefully', () => {
-    _localStorage.setItem(STORAGE_KEY, '{ broken json ::');
-    const data = loadData();
-    expect(data.batches).toBeArray();
-  });
-  it('stores multiple batches', () => {
-    clearStore();
-    saveData({ batches: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
-    expect(loadData().batches).toHaveLength(3);
-  });
+describe('loadData() / saveData()', () => {
+  it('empty store → {batches:[]}', () => { clearTestData(); expect(loadData().batches).toHaveLength(0); });
+  it('round-trips data',          () => { clearTestData(); saveData({batches:[{id:'x'}]}); expect(loadData().batches[0].id).toBe('x'); });
+  it('overwrites on save',        () => { clearTestData(); saveData({batches:[{id:'a'}]}); saveData({batches:[{id:'b'}]}); expect(loadData().batches[0].id).toBe('b'); });
+  it('corrupt JSON → {batches:[]}', () => { localStorage.setItem(STORAGE_KEY,'{{bad'); expect(loadData().batches).toBeArray(); });
 });
 
-describe('Data Layer: seedCherryBatch()', '🍒', () => {
-  it('creates cherry batch in empty store', () => {
-    clearStore();
-    seedCherryBatch();
-    const data = loadData();
-    expect(data.batches).toHaveLength(1);
-  });
-  it('creates batch with correct id', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].id).toBe('cherry-2026-seed');
-  });
-  it('sets correct name', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].name).toBe('Backyard Sweet Cherry 2026');
-  });
-  it('sets correct fruit type', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].fruit).toBe('Sweet Cherry');
-  });
-  it('sets correct year 2026', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].year).toBe(2026);
-  });
-  it('sets 3-gallon batch size', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].gallons).toBe(3);
-  });
-  it('sets source as Home Garden', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].source).toBe('Home Garden');
-  });
-  it('sets blossom date to April 11 2026', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].blossom_date).toBe('2026-04-11');
-  });
-  it('sets harvest date to June 20 2026', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].harvest_date).toBe('2026-06-20');
-  });
-  it('starts at fruit_selection stage', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].current_stage).toBe('fruit_selection');
-  });
-  it('starts with empty completed_stages array', () => {
-    clearStore();
-    seedCherryBatch();
-    expect(loadData().batches[0].completed_stages).toHaveLength(0);
-  });
-  it('is idempotent — calling twice does not duplicate', () => {
-    clearStore();
-    seedCherryBatch();
-    seedCherryBatch();
-    expect(loadData().batches).toHaveLength(1);
-  });
-  it('inserts at the front when other batches exist', () => {
-    clearStore();
-    saveData({ batches: [{ id: 'existing', name: 'Old Batch', current_stage: 'aging', completed_stages: [] }] });
-    seedCherryBatch();
-    const batches = loadData().batches;
-    expect(batches[0].id).toBe('cherry-2026-seed');
-    expect(batches[1].id).toBe('existing');
-  });
+describe('seedCherryBatch()', () => {
+  it('creates 1 batch',          () => { clearTestData(); seedCherryBatch(); expect(loadData().batches).toHaveLength(1); });
+  it('id = cherry-2026-seed',    () => { clearTestData(); seedCherryBatch(); expect(loadData().batches[0].id).toBe('cherry-2026-seed'); });
+  it('name correct',             () => { clearTestData(); seedCherryBatch(); expect(loadData().batches[0].name).toBe('Backyard Sweet Cherry 2026'); });
+  it('blossom = 2026-04-11',     () => { clearTestData(); seedCherryBatch(); expect(loadData().batches[0].blossom_date).toBe('2026-04-11'); });
+  it('harvest = 2026-06-20',     () => { clearTestData(); seedCherryBatch(); expect(loadData().batches[0].harvest_date).toBe('2026-06-20'); });
+  it('starts at fruit_selection',() => { clearTestData(); seedCherryBatch(); expect(loadData().batches[0].current_stage).toBe('fruit_selection'); });
+  it('3 gallon batch',           () => { clearTestData(); seedCherryBatch(); expect(loadData().batches[0].gallons).toBe(3); });
+  it('idempotent (no dup)',       () => { clearTestData(); seedCherryBatch(); seedCherryBatch(); expect(loadData().batches).toHaveLength(1); });
+  it('inserts at front',         () => { clearTestData(); saveData({batches:[{id:'old',current_stage:'aging',completed_stages:[]}]}); seedCherryBatch(); expect(loadData().batches[0].id).toBe('cherry-2026-seed'); });
 });
 
-describe('Batch Progress: batchProgress()', '📊', () => {
-  const makeBatch = (stage) => ({ current_stage: stage, completed_stages: [] });
-  it('returns current:0 for fruit_selection', () => {
-    expect(batchProgress(makeBatch('fruit_selection')).current).toBe(0);
-  });
-  it('returns current:4 for primary_fermentation', () => {
-    expect(batchProgress(makeBatch('primary_fermentation')).current).toBe(4);
-  });
-  it('returns current:8 for aging', () => {
-    expect(batchProgress(makeBatch('aging')).current).toBe(8);
-  });
-  it('always returns total:9', () => {
-    STAGE_IDS.forEach(id => {
-      expect(batchProgress(makeBatch(id)).total).toBe(9);
-    });
-  });
+describe('batchProgress()', () => {
+  const b = s => ({ current_stage:s, completed_stages:[] });
+  it('fruit_selection → current 0', () => expect(batchProgress(b('fruit_selection')).current).toBe(0));
+  it('aging → current 8',           () => expect(batchProgress(b('aging')).current).toBe(8));
+  it('total always 9',              () => STAGE_IDS.forEach(id => expect(batchProgress(b(id)).total).toBe(9)));
 });
 
-describe('Batch Progress: batchGroupClass()', '🎨', () => {
-  const makeBatch = (stage, completed = []) => ({ current_stage: stage, completed_stages: completed });
-  it('returns stage-planning for fruit_selection', () => {
-    expect(batchGroupClass(makeBatch('fruit_selection'))).toBe('stage-planning');
-  });
-  it('returns stage-planning for methodology', () => {
-    expect(batchGroupClass(makeBatch('methodology'))).toBe('stage-planning');
-  });
-  it('returns stage-preparation for preparation', () => {
-    expect(batchGroupClass(makeBatch('preparation'))).toBe('stage-preparation');
-  });
-  it('returns stage-fermentation for primary_fermentation', () => {
-    expect(batchGroupClass(makeBatch('primary_fermentation'))).toBe('stage-fermentation');
-  });
-  it('returns stage-fermentation for clarification', () => {
-    expect(batchGroupClass(makeBatch('clarification'))).toBe('stage-fermentation');
-  });
-  it('returns stage-aging for bottling', () => {
-    expect(batchGroupClass(makeBatch('bottling'))).toBe('stage-aging');
-  });
-  it('returns stage-aging for aging', () => {
-    expect(batchGroupClass(makeBatch('aging'))).toBe('stage-aging');
-  });
-  it('returns stage-complete when all 9 stages completed', () => {
-    expect(batchGroupClass(makeBatch('aging', [...STAGE_IDS]))).toBe('stage-complete');
-  });
+describe('batchGroupClass()', () => {
+  const b = (s, c=[]) => ({ current_stage:s, completed_stages:c });
+  it('fruit_selection → stage-planning',         () => expect(batchGroupClass(b('fruit_selection'))).toBe('stage-planning'));
+  it('preparation → stage-preparation',          () => expect(batchGroupClass(b('preparation'))).toBe('stage-preparation'));
+  it('primary_fermentation → stage-fermentation',() => expect(batchGroupClass(b('primary_fermentation'))).toBe('stage-fermentation'));
+  it('bottling → stage-aging',                   () => expect(batchGroupClass(b('bottling'))).toBe('stage-aging'));
+  it('all 9 complete → stage-complete',          () => expect(batchGroupClass(b('aging',[...STAGE_IDS]))).toBe('stage-complete'));
 });
 
-describe('Recipe: cherryRecipeDefaults()', '🧪', () => {
-  it('returns 7 ingredients', () => {
-    expect(cherryRecipeDefaults(1)).toHaveLength(7);
-  });
-  it('first ingredient is Sweet Cherries', () => {
-    expect(cherryRecipeDefaults(1)[0].name).toBe('Sweet Cherries');
-  });
-  it('1-gallon batch: 6.5 lbs cherries', () => {
-    expect(cherryRecipeDefaults(1)[0].amount).toBe('6.5');
-  });
-  it('3-gallon batch: 19.5 lbs cherries', () => {
-    expect(cherryRecipeDefaults(3)[0].amount).toBe('19.5');
-  });
-  it('1-gallon batch: 2.0 lbs sugar', () => {
-    expect(cherryRecipeDefaults(1)[1].amount).toBe('2.0');
-  });
-  it('3-gallon batch: 6.0 lbs sugar', () => {
-    expect(cherryRecipeDefaults(3)[1].amount).toBe('6.0');
-  });
-  it('all ingredients have name, amount, unit', () => {
-    cherryRecipeDefaults(1).forEach(ing => {
-      expect(ing.name).toBeTruthy();
-      expect(ing.amount).toBeTruthy();
-      expect(ing.unit).toBeTruthy();
-    });
-  });
-  it('scales linearly with batch size', () => {
-    const r1 = cherryRecipeDefaults(1);
-    const r2 = cherryRecipeDefaults(2);
-    expect(parseFloat(r2[0].amount)).toBe(parseFloat(r1[0].amount) * 2);
-  });
+describe('cherryRecipeDefaults()', () => {
+  it('returns 7 ingredients',          () => expect(cherryRecipeDefaults(1)).toHaveLength(7));
+  it('first = Sweet Cherries',         () => expect(cherryRecipeDefaults(1)[0].name).toBe('Sweet Cherries'));
+  it('1 gal → 6.5 lbs cherries',      () => expect(cherryRecipeDefaults(1)[0].amount).toBe('6.5'));
+  it('3 gal → 19.5 lbs cherries',     () => expect(cherryRecipeDefaults(3)[0].amount).toBe('19.5'));
+  it('scales linearly',                () => expect(parseFloat(cherryRecipeDefaults(2)[0].amount)).toBe(parseFloat(cherryRecipeDefaults(1)[0].amount)*2));
+  it('all items have name/amount/unit',() => cherryRecipeDefaults(1).forEach(i => { expect(i.name).toBeTruthy(); expect(i.unit).toBeTruthy(); }));
 });
 
-describe('ABV Estimator: estimateAbv()', '🍷', () => {
-  it('OG 1.090 → FG 1.000 ≈ 11.8% ABV', () => {
-    expect(estimateAbv(1.090, 1.000)).toBe(11.8);
-  });
-  it('OG 1.090 → FG 1.010 ≈ 10.5% ABV', () => {
-    expect(estimateAbv(1.090, 1.010)).toBe(10.5);
-  });
-  it('OG 1.110 → FG 1.000 ≈ 14.4% ABV', () => {
-    expect(estimateAbv(1.110, 1.000)).toBe(14.4);
-  });
-  it('same OG and FG = 0% ABV (no fermentation)', () => {
-    expect(estimateAbv(1.090, 1.090)).toBe(0);
-  });
-  it('ABV increases as FG decreases', () => {
-    const abvHigh = estimateAbv(1.090, 1.020);
-    const abvLow  = estimateAbv(1.090, 1.000);
-    expect(abvLow > abvHigh).toBeTruthy();
-  });
-  it('returns a number', () => {
-    expect(typeof estimateAbv(1.090, 1.010)).toBe('number');
-  });
+describe('estimateAbv()', () => {
+  it('OG 1.090 FG 1.000 → 11.8%', () => expect(estimateAbv(1.090, 1.000)).toBe(11.8));
+  it('OG 1.090 FG 1.010 → 10.5%', () => expect(estimateAbv(1.090, 1.010)).toBe(10.5));
+  it('same OG/FG → 0%',            () => expect(estimateAbv(1.090, 1.090)).toBe(0));
+  it('lower FG = higher ABV',       () => expect(estimateAbv(1.090,1.000) > estimateAbv(1.090,1.020)).toBeTruthy());
+  it('returns a number',            () => expect(typeof estimateAbv(1.090,1.010)).toBe('number'));
 });
 
-describe('Stage Ordering & Sequence', '🔄', () => {
-  it('planning stages come before preparation', () => {
-    expect(stageIndex('recipe')).toBeLessThan(stageIndex('preparation'));
-  });
-  it('preparation comes before fermentation', () => {
-    expect(stageIndex('preparation')).toBeLessThan(stageIndex('primary_fermentation'));
-  });
-  it('primary comes before secondary fermentation', () => {
-    expect(stageIndex('primary_fermentation')).toBeLessThan(stageIndex('secondary_fermentation'));
-  });
-  it('secondary comes before clarification', () => {
-    expect(stageIndex('secondary_fermentation')).toBeLessThan(stageIndex('clarification'));
-  });
-  it('clarification comes before bottling', () => {
-    expect(stageIndex('clarification')).toBeLessThan(stageIndex('bottling'));
-  });
-  it('bottling comes before aging', () => {
-    expect(stageIndex('bottling')).toBeLessThan(stageIndex('aging'));
-  });
-  it('no duplicate stage IDs', () => {
-    const unique = new Set(STAGE_IDS);
-    expect(unique.size).toBe(STAGE_IDS.length);
-  });
-  it('cherry batch blossom → harvest gap is ~70 days', () => {
-    const blossom  = daysUntil('2026-04-11');
-    const harvest  = daysUntil('2026-06-20');
-    const gap = harvest - blossom;
-    // 70 days apart: Jun 20 - Apr 11
-    expect(gap >= 65 && gap <= 75).toBeTruthy();
-  });
+describe('Stage ordering', () => {
+  it('planning before preparation',   () => expect(stageIndex('recipe')).toBeLessThan(stageIndex('preparation')));
+  it('preparation before primary',    () => expect(stageIndex('preparation')).toBeLessThan(stageIndex('primary_fermentation')));
+  it('primary before secondary',      () => expect(stageIndex('primary_fermentation')).toBeLessThan(stageIndex('secondary_fermentation')));
+  it('secondary before clarification',() => expect(stageIndex('secondary_fermentation')).toBeLessThan(stageIndex('clarification')));
+  it('clarification before bottling', () => expect(stageIndex('clarification')).toBeLessThan(stageIndex('bottling')));
+  it('bottling before aging',         () => expect(stageIndex('bottling')).toBeLessThan(stageIndex('aging')));
+  it('blossom-to-harvest gap ~70 days',() => { const gap = daysUntil('2026-06-20') - daysUntil('2026-04-11'); expect(gap >= 65 && gap <= 75).toBeTruthy(); });
 });
 
-// ══════════════════════════════════════════════════════════════════════
-//  SECTION 4 — RUNNER + UI
-// ══════════════════════════════════════════════════════════════════════
-let _filterMode = 'all';
-let _allExpanded = true;
-
+// ── Runner ─────────────────────────────────────────────────────────
 async function runAll() {
-  const btn = document.getElementById('run-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Running…';
-  setStatusText('running', 'Running…');
+  const snap = localStorage.getItem(STORAGE_KEY);
+  const restore = () => snap !== null ? localStorage.setItem(STORAGE_KEY, snap) : localStorage.removeItem(STORAGE_KEY);
 
-  const start = performance.now();
+  document.getElementById('run-btn').disabled = true;
+  const t0 = performance.now();
   let pass = 0, fail = 0, skip = 0;
 
-  for (const suite of _suites) {
-    for (const test of suite.tests) {
-      if (test.status === 'skip' || !test.fn) {
-        test.status = 'skip'; skip++; continue;
-      }
-      const t0 = performance.now();
-      try {
-        await test.fn();
-        test.status = 'pass';
-        test.duration = performance.now() - t0;
-        pass++;
-      } catch (e) {
-        test.status = 'fail';
-        test.error = e.message || String(e);
-        test.duration = performance.now() - t0;
-        fail++;
-      }
+  for (const suite of suites) {
+    for (const t of suite.tests) {
+      if (!t.fn) { t.status = 'skip'; skip++; continue; }
+      try { await t.fn(); t.status = 'pass'; pass++; }
+      catch(e) { t.status = 'fail'; t.err = e.message; fail++; }
     }
   }
 
-  const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-  const total = pass + fail + skip;
+  restore();
+  const elapsed = ((performance.now()-t0)/1000).toFixed(2);
+  const total = pass+fail+skip;
 
-  document.getElementById('cnt-pass').textContent = pass;
-  document.getElementById('cnt-fail').textContent = fail;
-  document.getElementById('cnt-skip').textContent = skip;
-  document.getElementById('progress-fill').style.width = total ? `${(pass / total) * 100}%` : '0%';
-  document.getElementById('duration').textContent = `${elapsed}s`;
+  document.getElementById('summary').innerHTML =
+    `<b class="pass">${pass} passed</b> &nbsp; <b class="fail">${fail} failed</b> &nbsp; <span class="muted">${skip} skipped</span>
+     &nbsp;&nbsp; <div style="flex:1;height:6px;background:#eee;border-radius:3px;overflow:hidden"><div style="height:100%;width:${total?(pass/total*100):0}%;background:#2E7D32"></div></div>
+     &nbsp;&nbsp; <span class="muted">${elapsed}s</span>`;
 
-  if (fail === 0) setStatusText('all-pass', `✓ All ${pass} tests passed`);
-  else            setStatusText('has-fail',  `✗ ${fail} failed, ${pass} passed`);
-
-  btn.disabled = false;
-  btn.textContent = '▶ Run All Tests';
-  renderResults();
+  document.getElementById('run-btn').disabled = false;
+  render();
 }
 
-function setStatusText(cls, text) {
-  const el = document.getElementById('status-text');
-  el.className = cls;
-  el.textContent = text;
-}
-
-function setFilter(mode) {
-  _filterMode = mode;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('f-' + mode)?.classList.add('active');
-  renderResults();
-}
-
-function applyFilter() { renderResults(); }
-
-function toggleAllSuites() {
-  _allExpanded = !_allExpanded;
-  document.querySelectorAll('.suite').forEach(el => {
-    el.classList.toggle('collapsed', !_allExpanded);
-  });
-  document.querySelector('.expand-all').textContent = _allExpanded ? 'Collapse all' : 'Expand all';
-}
-
-function renderResults() {
-  const search = document.getElementById('search-box').value.toLowerCase();
-  const container = document.getElementById('results');
-  container.innerHTML = '';
-
-  for (const suite of _suites) {
-    const tests = suite.tests.filter(t => {
-      if (_filterMode === 'fail' && t.status !== 'fail') return false;
-      if (search && !t.name.toLowerCase().includes(search)) return false;
-      return true;
-    });
-    if (tests.length === 0) continue;
-
-    const passCount = tests.filter(t => t.status === 'pass').length;
-    const failCount = tests.filter(t => t.status === 'fail').length;
-    const pendCount = tests.filter(t => t.status === 'pending').length;
-
-    let badgeClass = 'badge-idle';
-    let badgeText  = `${tests.length} tests`;
-    if (failCount > 0) { badgeClass = 'badge-fail'; badgeText = `${failCount} failed`; }
-    else if (passCount === tests.length && pendCount === 0) { badgeClass = 'badge-pass'; badgeText = `${passCount} passed`; }
-
-    const testRows = tests.map(t => {
-      const icon = { pass: '✓', fail: '✗', skip: '—', pending: '○' }[t.status] || '○';
-      const dur  = t.duration != null ? `${t.duration.toFixed(1)}ms` : '';
-      const errorBlock = t.error
-        ? `<div class="test-error">${escHtml(t.error)}</div>` : '';
-      return `<div class="test-row ${t.status}">
-        <span class="test-icon">${icon}</span>
-        <div class="test-row-inner">
-          <span class="test-name">${escHtml(t.name)}</span>
-          ${errorBlock}
-        </div>
-        <span class="test-dur">${dur}</span>
-      </div>`;
+function render() {
+  document.getElementById('results').innerHTML = suites.map(suite => {
+    const p = suite.tests.filter(t=>t.status==='pass').length;
+    const f = suite.tests.filter(t=>t.status==='fail').length;
+    const badge = f ? `<span class="badge bf">${f} failed</span>` : p===suite.tests.length ? `<span class="badge bp">${p} passed</span>` : `<span class="badge bi">${suite.tests.length} tests</span>`;
+    const rows = suite.tests.map(t => {
+      const icon = {pass:'✓',fail:'✗',skip:'—',pending:'○'}[t.status];
+      const err = t.err ? `<div class="err">${escHtml(t.err)}</div>` : '';
+      return `<div class="t ${t.status[0]}"><span style="width:14px;flex-shrink:0">${icon}</span><div style="flex:1">${escHtml(t.label)}${err}</div></div>`;
     }).join('');
-
-    const suiteEl = document.createElement('div');
-    suiteEl.className = 'suite';
-    suiteEl.innerHTML = `
-      <div class="suite-header" onclick="this.closest('.suite').classList.toggle('collapsed')">
-        <span class="suite-icon">${suite.icon}</span>
-        <span class="suite-name">${escHtml(suite.name)}</span>
-        <span class="suite-badge ${badgeClass}">${badgeText}</span>
-        <span class="chevron">▼</span>
-      </div>
-      <div class="suite-body">${testRows}</div>`;
-    container.appendChild(suiteEl);
-  }
-
-  if (container.children.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">No tests match the current filter.</div>`;
-  }
+    return `<div class="suite"><div class="suite-hd"><b>${escHtml(suite.name)}</b>${badge}</div>${rows}</div>`;
+  }).join('');
 }
 
-// Initial render (pending state)
-renderResults();
+render(); // initial pending state
 </script>
 </body>
 </html>

@@ -717,110 +717,11 @@
 <!-- ═══ TOAST CONTAINER ═══════════════════════════════════════════════ -->
 <div id="toast-container"></div>
 
+<!-- ═══ SHARED CORE (also used by wine-tests.html) ═══════════════════ -->
+<script src="wine-core.js"></script>
+
 <!-- ═══ APP SCRIPT ════════════════════════════════════════════════════ -->
 <script>
-// ─── Constants ──────────────────────────────────────────────────────
-const STORAGE_KEY = 'vintners_log_v1';
-
-const STAGES = [
-  { id: 'fruit_selection',        label: 'Fruit Selection',   icon: '🍒', group: 'planning' },
-  { id: 'methodology',            label: 'Methodology',       icon: '📋', group: 'planning' },
-  { id: 'recipe',                 label: 'Recipe',            icon: '🧪', group: 'planning' },
-  { id: 'preparation',            label: 'Preparation',       icon: '⚗️',  group: 'preparation' },
-  { id: 'primary_fermentation',   label: 'Primary Ferm.',     icon: '🫧', group: 'fermentation' },
-  { id: 'secondary_fermentation', label: 'Secondary Ferm.',   icon: '🔬', group: 'fermentation' },
-  { id: 'clarification',          label: 'Clarification',     icon: '✨', group: 'fermentation' },
-  { id: 'bottling',               label: 'Bottling',          icon: '🍾', group: 'aging' },
-  { id: 'aging',                  label: 'Aging',             icon: '🪵', group: 'aging' },
-];
-
-const STAGE_IDS = STAGES.map(s => s.id);
-
-const GROUP_CLASS = {
-  planning:     'stage-planning',
-  preparation:  'stage-preparation',
-  fermentation: 'stage-fermentation',
-  aging:        'stage-aging',
-  complete:     'stage-complete',
-};
-
-// ─── Data Layer ──────────────────────────────────────────────────────
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { batches: [] };
-  } catch { return { batches: [] }; }
-}
-
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-function getData() { return loadData(); }
-
-function seedCherryBatch() {
-  const data = loadData();
-  const already = data.batches.find(b => b.id === 'cherry-2026-seed');
-  if (already) return;
-
-  const cherryBatch = {
-    id: 'cherry-2026-seed',
-    name: 'Backyard Sweet Cherry 2026',
-    fruit: 'Sweet Cherry',
-    year: 2026,
-    gallons: 3,
-    source: 'Home Garden',
-    harvest_date: '2026-06-20',
-    blossom_date: '2026-04-11',
-    current_stage: 'fruit_selection',
-    completed_stages: [],
-    created: new Date().toISOString(),
-    notes: 'Two sweet cherry trees in the backyard blossomed April 11, 2026. Estimated harvest late June. Planning a 3-gallon batch.',
-    stages: {}
-  };
-
-  data.batches.unshift(cherryBatch);
-  saveData(data);
-}
-
-// ─── Utilities ───────────────────────────────────────────────────────
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
-function formatDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function daysUntil(isoDate) {
-  if (!isoDate) return null;
-  const target = new Date(isoDate + 'T00:00:00');
-  const now = new Date();
-  now.setHours(0,0,0,0);
-  return Math.ceil((target - now) / 86400000);
-}
-
-function stageIndex(stageId) {
-  return STAGE_IDS.indexOf(stageId);
-}
-
-function getStageInfo(stageId) {
-  return STAGES.find(s => s.id === stageId) || STAGES[0];
-}
-
-function batchProgress(batch) {
-  const idx = stageIndex(batch.current_stage);
-  return { current: idx, total: STAGES.length };
-}
-
-function batchGroupClass(batch) {
-  if (batch.completed_stages?.length === STAGES.length) return 'stage-complete';
-  const info = getStageInfo(batch.current_stage);
-  return GROUP_CLASS[info.group] || 'stage-planning';
-}
-
 // ─── Toast ───────────────────────────────────────────────────────────
 function showToast(msg, type = '') {
   const tc = document.getElementById('toast-container');
@@ -2714,12 +2615,6 @@ function revisitStage(stageId) {
   saveData(data);
   renderDetail(batch);
   showToast(`Editing: ${getStageInfo(stageId).label}`);
-}
-
-// ─── HTML Escape ──────────────────────────────────────────────────────
-function escHtml(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 // ─── Init ────────────────────────────────────────────────────────────
