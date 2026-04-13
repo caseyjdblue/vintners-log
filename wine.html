@@ -612,6 +612,62 @@
       color: var(--muted);
       border-top: 1px solid var(--cream-d);
     }
+
+    /* ── Intake Wizard ──────────────────────────────────────────── */
+    .modal-wide { max-width: 620px; width: 96vw; }
+    .wizard-progress {
+      display: flex; align-items: center; justify-content: center;
+      gap: 4px; padding: 14px 24px 0; background: var(--cream);
+      border-bottom: 1px solid var(--cream-d);
+    }
+    .wz-step {
+      font-family: var(--font-body); font-size: .75rem; font-weight: 600;
+      color: var(--muted); padding: 6px 12px; border-radius: 20px;
+      letter-spacing: .04em; text-transform: uppercase; transition: all .2s;
+    }
+    .wz-step.active { background: var(--burgundy); color: var(--cream); }
+    .wz-step.done   { background: var(--green-l); color: var(--green); }
+    .wz-sep { color: var(--cream-d); font-size: .8rem; }
+    .wz-subtitle { font-size: .95rem; color: var(--ink-l); margin-bottom: 18px; }
+    .fruit-grid, .ferm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 10px; }
+    .lib-card {
+      border: 2px solid var(--cream-d); border-radius: var(--radius); padding: 12px;
+      cursor: pointer; transition: all .18s; background: var(--white);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .lib-card:hover { border-color: var(--burgundy-l); background: var(--cream); }
+    .lib-card.selected { border-color: var(--burgundy); background: #F9F0F3; }
+    .lib-card .lc-icon { font-size: 1.4rem; }
+    .lib-card .lc-name { font-family: var(--font-head); font-size: .95rem; font-weight: 600; }
+    .lib-card .lc-sub  { font-size: .75rem; color: var(--muted); }
+    .yeast-list { display: flex; flex-direction: column; gap: 8px; }
+    .yeast-card {
+      border: 2px solid var(--cream-d); border-radius: var(--radius); padding: 12px 16px;
+      cursor: pointer; transition: all .18s; background: var(--white);
+    }
+    .yeast-card:hover { border-color: var(--burgundy-l); background: var(--cream); }
+    .yeast-card.selected { border-color: var(--burgundy); background: #F9F0F3; }
+    .yeast-card .yc-name { font-family: var(--font-head); font-size: 1rem; font-weight: 600; }
+    .yeast-card .yc-char { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+    .yeast-card .yc-rec  { font-size: .75rem; color: var(--green); font-weight: 600; margin-top: 4px; }
+    .src-btn {
+      padding: 8px 16px; border-radius: 20px; border: 2px solid var(--cream-d);
+      background: var(--white); color: var(--ink-l); font-family: var(--font-body);
+      font-size: .85rem; cursor: pointer; transition: all .18s; margin-right: 8px;
+    }
+    .src-btn.active { background: var(--burgundy); border-color: var(--burgundy); color: var(--cream); }
+    /* Review panel */
+    .review-section { margin-bottom: 18px; }
+    .review-section h4 { font-family: var(--font-head); font-size: 1rem; color: var(--burgundy); margin-bottom: 8px; }
+    .review-label { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+    .review-value { font-size: .95rem; color: var(--ink); }
+    .ing-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .ing-table th { text-align: left; padding: 4px 8px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--cream-d); }
+    .ing-table td { padding: 5px 8px; border-bottom: 1px solid var(--cream-d); }
+    .timeline-row { display: flex; justify-content: space-between; align-items: center; font-size: .83rem; padding: 5px 0; border-bottom: 1px solid var(--cream-d); }
+    .timeline-row:last-child { border-bottom: none; }
+    .timeline-stage { font-weight: 600; color: var(--ink-l); }
+    .timeline-dates { color: var(--muted); }
   </style>
 </head>
 <body>
@@ -673,58 +729,89 @@
   Vintner's Log &mdash; Full lifecycle: Fruit Selection → Methodology → Recipe → Preparation → Fermentation → Bottling → Aging
 </footer>
 
-<!-- ═══ NEW BATCH MODAL ══════════════════════════════════════════════ -->
+<!-- ═══ NEW BATCH WIZARD ═════════════════════════════════════════════ -->
 <div class="modal-overlay" id="modal-new-batch">
-  <div class="modal">
+  <div class="modal modal-wide">
     <div class="modal-header">
-      <h2>🍇 Start a New Batch</h2>
-      <button class="modal-close" onclick="closeModal('modal-new-batch')">&times;</button>
+      <h2>🍇 New Batch</h2>
+      <button class="modal-close" onclick="closeWizard()">&times;</button>
+    </div>
+    <div class="wizard-progress" id="wz-progress">
+      <div class="wz-step active" id="wz-prog-1">Fruit</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-2">Method</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-3">Yeast</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-4">Details</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-5">Review</div>
     </div>
     <div class="modal-body">
-      <div class="form-group">
-        <label>Batch Name</label>
-        <input type="text" id="nb-name" placeholder="e.g. Backyard Sweet Cherry 2026" />
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Fruit / Ingredient</label>
-          <input type="text" id="nb-fruit" placeholder="e.g. Sweet Cherry" />
-        </div>
-        <div class="form-group">
-          <label>Vintage Year</label>
-          <input type="number" id="nb-year" placeholder="2026" min="2000" max="2100" />
+      <!-- Step 1: Fruit -->
+      <div class="wz-panel" id="wz-panel-1">
+        <p class="wz-subtitle">What fruit are you working with?</p>
+        <div class="fruit-grid" id="wz-fruit-grid"></div>
+        <div class="form-group" style="margin-top:14px">
+          <label>Custom fruit (if not listed above)</label>
+          <input type="text" id="wz-custom-fruit" placeholder="e.g. Gooseberry, Mango…" />
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Batch Size (gallons)</label>
-          <input type="number" id="nb-gallons" placeholder="3" step="0.5" min="0.5" />
-        </div>
+      <!-- Step 2: Fermentation Type -->
+      <div class="wz-panel" id="wz-panel-2" style="display:none">
+        <p class="wz-subtitle">How do you want to ferment?</p>
+        <div class="ferm-grid" id="wz-ferm-grid"></div>
+      </div>
+      <!-- Step 3: Yeast -->
+      <div class="wz-panel" id="wz-panel-3" style="display:none">
+        <p class="wz-subtitle">Choose your yeast strain</p>
+        <div class="yeast-list" id="wz-yeast-list"></div>
+      </div>
+      <!-- Step 4: Batch Details -->
+      <div class="wz-panel" id="wz-panel-4" style="display:none">
+        <p class="wz-subtitle">Tell us about this batch</p>
         <div class="form-group">
           <label>Fruit Source</label>
-          <select id="nb-source">
-            <option value="Home Garden">Home Garden</option>
-            <option value="Local Farm">Local Farm</option>
-            <option value="Farmers Market">Farmers Market</option>
-            <option value="Wild Foraged">Wild Foraged</option>
-            <option value="Commercial">Commercial</option>
-            <option value="Other">Other</option>
-          </select>
+          <div style="margin-bottom:8px">
+            <button class="src-btn active" id="src-garden" onclick="setWzSource('garden')">🌿 From my garden</button>
+            <button class="src-btn" id="src-purchase" onclick="setWzSource('purchase')">🛒 Purchased</button>
+          </div>
+          <input type="text" id="wz-source-detail" placeholder="e.g. backyard trees, farmers market, local farm…" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start / Harvest Date</label>
+            <input type="date" id="wz-start-date" />
+            <p class="form-hint">Can be updated later if not known yet.</p>
+          </div>
+          <div class="form-group">
+            <label>Vintage Year</label>
+            <input type="number" id="wz-year" min="2000" max="2100" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Batch Size (gallons)</label>
+            <input type="number" id="wz-gallons" placeholder="3" step="0.5" min="0.5" />
+          </div>
+          <div class="form-group">
+            <label>Target ABV %</label>
+            <input type="number" id="wz-abv" placeholder="12" step="0.5" min="5" max="20" />
+          </div>
         </div>
       </div>
-      <div class="form-group">
-        <label>Estimated Harvest / Start Date</label>
-        <input type="date" id="nb-harvest-date" />
-        <p class="form-hint">Leave blank if still planning. You can update later.</p>
-      </div>
-      <div class="form-group">
-        <label>Notes</label>
-        <textarea id="nb-notes" placeholder="Any initial notes about this batch..."></textarea>
+      <!-- Step 5: Review -->
+      <div class="wz-panel" id="wz-panel-5" style="display:none">
+        <div id="wz-review-content"></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal('modal-new-batch')">Cancel</button>
-      <button class="btn btn-primary" onclick="createBatch()">Create Batch</button>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-outline" id="wz-back-btn" onclick="wizardBack()" style="display:none">← Back</button>
+      <div style="display:flex;gap:10px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeWizard()">Cancel</button>
+        <button class="btn btn-primary" id="wz-next-btn" onclick="wizardNext()">Next →</button>
+        <button class="btn btn-gold" id="wz-create-btn" onclick="createBatchFromWizard()" style="display:none">Start Batch</button>
+      </div>
     </div>
   </div>
 </div>
@@ -755,45 +842,229 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
+// ─── Intake Wizard State ──────────────────────────────────────────────
+var wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null, source: 'garden' };
+
 function openNewBatchModal() {
-  // Reset form
-  ['nb-name','nb-fruit','nb-year','nb-gallons','nb-harvest-date','nb-notes']
-    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  document.getElementById('nb-year').value = new Date().getFullYear();
+  wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null, source: 'garden' };
+  document.getElementById('wz-year').value = new Date().getFullYear();
+  document.getElementById('wz-start-date').value = '';
+  document.getElementById('wz-gallons').value = '';
+  document.getElementById('wz-abv').value = '';
+  document.getElementById('wz-custom-fruit').value = '';
+  document.getElementById('wz-source-detail').value = '';
+  setWzSource('garden');
+  renderWzFruitGrid();
+  wizardGoto(1);
   openModal('modal-new-batch');
 }
 
-// ─── Create Batch ─────────────────────────────────────────────────────
-function createBatch() {
-  const name  = document.getElementById('nb-name').value.trim();
-  const fruit = document.getElementById('nb-fruit').value.trim();
-  const year  = document.getElementById('nb-year').value;
+function closeWizard() { closeModal('modal-new-batch'); }
 
-  if (!name) { showToast('Please enter a batch name.', 'error'); return; }
-  if (!fruit) { showToast('Please enter the fruit / ingredient.', 'error'); return; }
+function setWzSource(s) {
+  wzState.source = s;
+  document.getElementById('src-garden').classList.toggle('active', s === 'garden');
+  document.getElementById('src-purchase').classList.toggle('active', s === 'purchase');
+}
+
+function wizardGoto(step) {
+  wzState.step = step;
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('wz-panel-' + i).style.display = i === step ? '' : 'none';
+    const prog = document.getElementById('wz-prog-' + i);
+    prog.classList.toggle('active', i === step);
+    prog.classList.toggle('done', i < step);
+  }
+  document.getElementById('wz-back-btn').style.display = step > 1 ? '' : 'none';
+  document.getElementById('wz-next-btn').style.display = step < 5 ? '' : 'none';
+  document.getElementById('wz-create-btn').style.display = step === 5 ? '' : 'none';
+  if (step === 2) renderWzFermGrid();
+  if (step === 3) renderWzYeastList();
+  if (step === 5) renderWzReview();
+}
+
+function wizardNext() {
+  const s = wzState.step;
+  if (s === 1) {
+    wzState.customFruit = document.getElementById('wz-custom-fruit').value.trim();
+    if (!wzState.fruitId && !wzState.customFruit) {
+      showToast('Please select or enter a fruit.', 'error'); return;
+    }
+  }
+  if (s === 2 && !wzState.fermId) { showToast('Please choose a fermentation type.', 'error'); return; }
+  if (s === 3 && !wzState.yeastId) { showToast('Please choose a yeast strain.', 'error'); return; }
+  if (s === 4) {
+    if (!document.getElementById('wz-gallons').value) {
+      showToast('Please enter a batch size.', 'error'); return;
+    }
+  }
+  wizardGoto(s + 1);
+}
+
+function wizardBack() { wizardGoto(wzState.step - 1); }
+
+// Fruit grid
+function renderWzFruitGrid() {
+  const grid = document.getElementById('wz-fruit-grid');
+  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🫐',
+    blackberry:'🫐', raspberry:'🫐', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🫐' };
+  grid.innerHTML = FRUIT_LIBRARY.map(f => `
+    <div class="lib-card${wzState.fruitId===f.id?' selected':''}" onclick="selectWzFruit('${f.id}')">
+      <div class="lc-icon">${icons[f.id]||'🍷'}</div>
+      <div class="lc-name">${escHtml(f.name)}</div>
+      <div class="lc-sub">${escHtml(f.season)}</div>
+    </div>`).join('');
+}
+
+function selectWzFruit(id) {
+  wzState.fruitId = id;
+  document.getElementById('wz-custom-fruit').value = '';
+  renderWzFruitGrid();
+  // auto-advance
+  setTimeout(() => wizardNext(), 180);
+}
+
+// Fermentation grid
+function renderWzFermGrid() {
+  const grid = document.getElementById('wz-ferm-grid');
+  grid.innerHTML = FERMENTATION_TYPES.map(f => `
+    <div class="lib-card${wzState.fermId===f.id?' selected':''}" onclick="selectWzFerm('${f.id}')">
+      <div class="lc-icon">${f.icon}</div>
+      <div class="lc-name">${escHtml(f.name)}</div>
+      <div class="lc-sub">${escHtml(f.description.slice(0,55))}…</div>
+    </div>`).join('');
+}
+
+function selectWzFerm(id) {
+  wzState.fermId = id;
+  renderWzFermGrid();
+  setTimeout(() => wizardNext(), 180);
+}
+
+// Yeast list — filtered to relevant strains first
+function renderWzYeastList() {
+  const list = document.getElementById('wz-yeast-list');
+  const fid = wzState.fruitId;
+  const sorted = [...YEAST_LIBRARY].sort((a,b) => {
+    const ar = fid && a.best_for && a.best_for.includes(fid) ? 0 : 1;
+    const br = fid && b.best_for && b.best_for.includes(fid) ? 0 : 1;
+    return ar - br;
+  });
+  list.innerHTML = sorted.map(y => {
+    const rec = fid && y.best_for && y.best_for.includes(fid);
+    return `<div class="yeast-card${wzState.yeastId===y.id?' selected':''}" onclick="selectWzYeast('${y.id}')">
+      <div class="yc-name">${escHtml(y.name)}</div>
+      <div class="yc-char">${escHtml(y.character)}</div>
+      ${rec ? '<div class="yc-rec">★ Recommended for this fruit</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectWzYeast(id) {
+  wzState.yeastId = id;
+  renderWzYeastList();
+  setTimeout(() => wizardNext(), 180);
+}
+
+// Review panel
+function renderWzReview() {
+  const fruit = wzState.fruitId ? getFruitById(wzState.fruitId) : null;
+  const fruitName = fruit ? fruit.name : wzState.customFruit;
+  const ferm = wzState.fermId ? getFermTypeById(wzState.fermId) : null;
+  const yeast = wzState.yeastId ? getYeastById(wzState.yeastId) : null;
+  const gallons = parseFloat(document.getElementById('wz-gallons').value) || 1;
+  const abv = document.getElementById('wz-abv').value;
+  const startDate = document.getElementById('wz-start-date').value;
+  const year = document.getElementById('wz-year').value;
+  const batchType = buildBatchType(wzState.fruitId, wzState.fermId);
+  const templateId = fruit ? fruit.recipe_id : null;
+  const ingredients = templateId ? scaleRecipe(templateId, gallons) : [];
+  const timeline = ferm && startDate ? projectTimeline(wzState.fermId, startDate) : null;
+  const srcDetail = document.getElementById('wz-source-detail').value.trim();
+  const srcLabel = wzState.source === 'garden'
+    ? ('From garden' + (srcDetail ? ': ' + srcDetail : ''))
+    : ('Purchased' + (srcDetail ? ': ' + srcDetail : ''));
+
+  const stageLabels = {
+    preparation:'Preparation', primary_fermentation:'Primary Fermentation',
+    secondary_fermentation:'Secondary Fermentation', clarification:'Clarification',
+    bottling:'Bottling', aging:'Aging'
+  };
+
+  document.getElementById('wz-review-content').innerHTML = `
+    <div class="review-section">
+      <div class="review-label">Batch Type</div>
+      <div class="review-value" style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;color:var(--burgundy)">${escHtml(batchType)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+      <div><div class="review-label">Fruit</div><div class="review-value">${escHtml(fruitName)}</div></div>
+      <div><div class="review-label">Fermentation</div><div class="review-value">${ferm ? escHtml(ferm.name) : '—'}</div></div>
+      <div><div class="review-label">Yeast</div><div class="review-value">${yeast ? escHtml(yeast.name) : '—'}</div></div>
+      <div><div class="review-label">Batch Size</div><div class="review-value">${gallons} gal${abv?' · '+abv+'% ABV':''}</div></div>
+      <div><div class="review-label">Source</div><div class="review-value">${escHtml(srcLabel)}</div></div>
+      <div><div class="review-label">Start Date</div><div class="review-value">${startDate || 'Not set'}</div></div>
+    </div>
+    ${ingredients.length ? `
+    <div class="review-section">
+      <h4>Ingredients (scaled to ${gallons} gal)</h4>
+      <table class="ing-table">
+        <tr><th>Ingredient</th><th>Amount</th></tr>
+        ${ingredients.map(i=>`<tr><td>${escHtml(i.name)}</td><td>${i.amount} ${escHtml(i.unit)}</td></tr>`).join('')}
+      </table>
+    </div>` : ''}
+    ${timeline ? `
+    <div class="review-section">
+      <h4>Projected Timeline</h4>
+      ${Object.entries(timeline).map(([k,v])=>`
+        <div class="timeline-row">
+          <span class="timeline-stage">${stageLabels[k]||k}</span>
+          <span class="timeline-dates">${v.start}${v.end&&v.end!==v.start?' → '+v.end:''}</span>
+        </div>`).join('')}
+    </div>` : '<p style="font-size:.85rem;color:var(--muted)">Add a start date to see the projected timeline.</p>'}
+  `;
+}
+
+// ─── Create Batch from Wizard ─────────────────────────────────────────
+function createBatchFromWizard() {
+  const fruit = wzState.fruitId ? getFruitById(wzState.fruitId) : null;
+  const fruitName = fruit ? fruit.name : wzState.customFruit;
+  const ferm = wzState.fermId ? getFermTypeById(wzState.fermId) : null;
+  const gallons = parseFloat(document.getElementById('wz-gallons').value) || null;
+  const abv = parseFloat(document.getElementById('wz-abv').value) || null;
+  const startDate = document.getElementById('wz-start-date').value || null;
+  const year = parseInt(document.getElementById('wz-year').value) || new Date().getFullYear();
+  const srcDetail = document.getElementById('wz-source-detail').value.trim();
+  const source = wzState.source === 'garden'
+    ? 'Home Garden' + (srcDetail ? ' — ' + srcDetail : '')
+    : srcDetail || 'Purchased';
+  const batchType = buildBatchType(wzState.fruitId, wzState.fermId);
+  const name = batchType + ' ' + year;
 
   const batch = {
     id: generateId(),
     name,
-    fruit,
-    year: parseInt(year) || new Date().getFullYear(),
-    gallons: parseFloat(document.getElementById('nb-gallons').value) || null,
-    source: document.getElementById('nb-source').value,
-    harvest_date: document.getElementById('nb-harvest-date').value || null,
+    fruit: fruitName,
+    fruit_id: wzState.fruitId,
+    ferm_type: wzState.fermId,
+    yeast_id: wzState.yeastId,
+    year,
+    gallons,
+    target_abv: abv,
+    source,
+    harvest_date: startDate,
     blossom_date: null,
     current_stage: 'fruit_selection',
     completed_stages: [],
     created: new Date().toISOString(),
-    notes: document.getElementById('nb-notes').value.trim(),
+    notes: '',
     stages: {}
   };
 
   const data = loadData();
   data.batches.unshift(batch);
   saveData(data);
-
-  closeModal('modal-new-batch');
-  showToast(`"${batch.name}" batch created!`, 'success');
+  closeWizard();
+  showToast(`"${batch.name}" created!`, 'success');
   renderDashboard();
 }
 
