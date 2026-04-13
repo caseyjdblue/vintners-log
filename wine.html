@@ -668,6 +668,47 @@
     .timeline-row:last-child { border-bottom: none; }
     .timeline-stage { font-weight: 600; color: var(--ink-l); }
     .timeline-dates { color: var(--muted); }
+
+    /* ── Library Browser ────────────────────────────────────────── */
+    .modal-xl { max-width: 780px; width: 96vw; max-height: 90vh; display: flex; flex-direction: column; }
+    .modal-xl .modal-body { overflow-y: auto; flex: 1; }
+    .lib-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--cream-d); margin-bottom: 20px; }
+    .lib-tab {
+      padding: 10px 18px; font-family: var(--font-body); font-size: .85rem; font-weight: 600;
+      color: var(--muted); border: none; background: transparent; cursor: pointer;
+      border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all .18s;
+    }
+    .lib-tab.active { color: var(--burgundy); border-bottom-color: var(--burgundy); }
+    .lib-tab:hover:not(.active) { color: var(--ink); }
+    .lib-section { display: none; }
+    .lib-section.active { display: block; }
+    .lib-detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 14px; margin-bottom: 20px; }
+    .lib-detail-card {
+      border: 1px solid var(--cream-d); border-radius: var(--radius); padding: 16px;
+      background: var(--white); position: relative;
+    }
+    .lib-detail-card.custom-entry { border-color: var(--gold); background: #FFFDF5; }
+    .lib-detail-card .ldc-name { font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .lib-detail-card .ldc-tag { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 8px; }
+    .lib-detail-card .ldc-row { font-size: .8rem; color: var(--ink-l); margin-bottom: 3px; }
+    .lib-detail-card .ldc-row strong { color: var(--ink); }
+    .lib-detail-card .ldc-delete {
+      position: absolute; top: 8px; right: 8px; background: none; border: none;
+      color: var(--muted); font-size: 1rem; cursor: pointer; padding: 2px 6px;
+      border-radius: 4px; line-height: 1;
+    }
+    .lib-detail-card .ldc-delete:hover { background: #FEE2E2; color: var(--orange); }
+    .add-custom-form {
+      background: var(--cream); border: 1px dashed var(--cream-d); border-radius: var(--radius);
+      padding: 18px; margin-top: 8px;
+    }
+    .add-custom-form h4 { font-family: var(--font-head); font-size: .95rem; margin-bottom: 14px; color: var(--burgundy); }
+    .add-custom-toggle {
+      display: inline-flex; align-items: center; gap: 6px; font-size: .85rem;
+      color: var(--burgundy); cursor: pointer; font-weight: 600; background: none; border: none;
+      padding: 4px 0; margin-top: 4px;
+    }
+    .add-custom-toggle:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -682,6 +723,7 @@
     </div>
   </div>
   <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="openLibrary()">📚 Library</button>
     <button class="btn btn-ghost btn-sm" onclick="openNewBatchModal()">+ New Batch</button>
   </div>
 </header>
@@ -816,6 +858,31 @@
   </div>
 </div>
 
+<!-- ═══ LIBRARY BROWSER MODAL ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-library">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <h2>📚 Library</h2>
+      <button class="modal-close" onclick="closeModal('modal-library')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="lib-tabs">
+        <button class="lib-tab active" onclick="switchLibTab('fruits')">🍒 Fruits</button>
+        <button class="lib-tab" onclick="switchLibTab('fermentation')">⚗️ Fermentation</button>
+        <button class="lib-tab" onclick="switchLibTab('yeast')">🧫 Yeast</button>
+        <button class="lib-tab" onclick="switchLibTab('recipes')">📋 Recipes</button>
+      </div>
+      <div class="lib-section active" id="lib-fruits"></div>
+      <div class="lib-section" id="lib-fermentation"></div>
+      <div class="lib-section" id="lib-yeast"></div>
+      <div class="lib-section" id="lib-recipes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-library')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ TOAST CONTAINER ═══════════════════════════════════════════════ -->
 <div id="toast-container"></div>
 
@@ -908,7 +975,7 @@ function renderWzFruitGrid() {
   const grid = document.getElementById('wz-fruit-grid');
   const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🫐',
     blackberry:'🫐', raspberry:'🫐', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🫐' };
-  grid.innerHTML = FRUIT_LIBRARY.map(f => `
+  grid.innerHTML = allFruits().map(f => `
     <div class="lib-card${wzState.fruitId===f.id?' selected':''}" onclick="selectWzFruit('${f.id}')">
       <div class="lc-icon">${icons[f.id]||'🍷'}</div>
       <div class="lc-name">${escHtml(f.name)}</div>
@@ -927,7 +994,7 @@ function selectWzFruit(id) {
 // Fermentation grid
 function renderWzFermGrid() {
   const grid = document.getElementById('wz-ferm-grid');
-  grid.innerHTML = FERMENTATION_TYPES.map(f => `
+  grid.innerHTML = allFermTypes().map(f => `
     <div class="lib-card${wzState.fermId===f.id?' selected':''}" onclick="selectWzFerm('${f.id}')">
       <div class="lc-icon">${f.icon}</div>
       <div class="lc-name">${escHtml(f.name)}</div>
@@ -945,7 +1012,7 @@ function selectWzFerm(id) {
 function renderWzYeastList() {
   const list = document.getElementById('wz-yeast-list');
   const fid = wzState.fruitId;
-  const sorted = [...YEAST_LIBRARY].sort((a,b) => {
+  const sorted = [...allYeasts()].sort((a,b) => {
     const ar = fid && a.best_for && a.best_for.includes(fid) ? 0 : 1;
     const br = fid && b.best_for && b.best_for.includes(fid) ? 0 : 1;
     return ar - br;
@@ -1066,6 +1133,224 @@ function createBatchFromWizard() {
   closeWizard();
   showToast(`"${batch.name}" created!`, 'success');
   renderDashboard();
+}
+
+// ─── Library Browser ─────────────────────────────────────────────────
+var _libTab = 'fruits';
+
+function openLibrary() {
+  renderLibTab(_libTab);
+  openModal('modal-library');
+}
+
+function switchLibTab(tab) {
+  _libTab = tab;
+  document.querySelectorAll('.lib-tab').forEach((el,i) => {
+    el.classList.toggle('active', ['fruits','fermentation','yeast','recipes'][i] === tab);
+  });
+  document.querySelectorAll('.lib-section').forEach(el => el.classList.remove('active'));
+  document.getElementById('lib-' + tab).classList.add('active');
+  renderLibTab(tab);
+}
+
+function allFruits() {
+  const custom = (loadData().custom_fruits || []);
+  return [...FRUIT_LIBRARY, ...custom.map(c => ({...c, _custom:true}))];
+}
+function allFermTypes() {
+  const custom = (loadData().custom_ferm_types || []);
+  return [...FERMENTATION_TYPES, ...custom.map(c => ({...c, _custom:true}))];
+}
+function allYeasts() {
+  const custom = (loadData().custom_yeasts || []);
+  return [...YEAST_LIBRARY, ...custom.map(c => ({...c, _custom:true}))];
+}
+
+function renderLibTab(tab) {
+  if (tab === 'fruits')      renderLibFruits();
+  if (tab === 'fermentation') renderLibFerm();
+  if (tab === 'yeast')       renderLibYeast();
+  if (tab === 'recipes')     renderLibRecipes();
+}
+
+function renderLibFruits() {
+  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🫐',
+    blackberry:'🫐', raspberry:'🫐', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🫐' };
+  const items = allFruits().map(f => `
+    <div class="lib-detail-card${f._custom?' custom-entry':''}">
+      ${f._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('fruit','${escHtml(f.id)}')" title="Remove">✕</button>` : ''}
+      <div class="ldc-tag">${icons[f.id]||'🍷'} ${f.season||''}</div>
+      <div class="ldc-name">${escHtml(f.name)}</div>
+      <div class="ldc-row"><strong>Lbs/gallon:</strong> ${f.lbs_per_gallon ? f.lbs_per_gallon.ideal || f.lbs_per_gallon : '—'}</div>
+      <div class="ldc-row"><strong>Acid:</strong> ${f.acid||'—'} &nbsp; <strong>Sugar:</strong> ${f.sugar||'—'}</div>
+      ${f.notes ? `<div class="ldc-row" style="margin-top:6px;color:var(--muted)">${escHtml(f.notes)}</div>` : ''}
+    </div>`).join('');
+  document.getElementById('lib-fruits').innerHTML = `
+    <div class="lib-detail-grid">${items}</div>
+    <button class="add-custom-toggle" onclick="toggleAddForm('lib-fruits')">+ Add custom fruit</button>
+    <div class="add-custom-form" id="lib-fruits-form" style="display:none">
+      <h4>Add Custom Fruit</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cf-name" placeholder="e.g. Gooseberry" /></div>
+        <div class="form-group"><label>Season</label><input type="text" id="cf-season" placeholder="e.g. July–Aug" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Lbs per gallon</label><input type="number" id="cf-lbs" placeholder="6" step="0.5" /></div>
+        <div class="form-group"><label>Recipe template</label>
+          <select id="cf-recipe"><option value="berry">Berry</option><option value="stone_fruit">Stone Fruit</option><option value="apple">Apple/Cider</option><option value="grape">Grape</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Notes (optional)</label><input type="text" id="cf-notes" /></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveCustomFruit()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddForm('lib-fruits')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderLibFerm() {
+  const items = allFermTypes().map(f => `
+    <div class="lib-detail-card${f._custom?' custom-entry':''}">
+      ${f._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('ferm','${escHtml(f.id)}')" title="Remove">✕</button>` : ''}
+      <div class="ldc-tag">${f.icon||'⚗️'}</div>
+      <div class="ldc-name">${escHtml(f.name)}</div>
+      <div class="ldc-row" style="color:var(--muted);margin-bottom:8px">${escHtml(f.description||'')}</div>
+      ${f.timeline_days ? `<div class="ldc-row"><strong>Primary:</strong> ${f.timeline_days.primary?.min||'?'}–${f.timeline_days.primary?.max||'?'} days</div>` : ''}
+      ${f.timeline_days ? `<div class="ldc-row"><strong>Secondary:</strong> ${f.timeline_days.secondary?.min||'?'}–${f.timeline_days.secondary?.max||'?'} days</div>` : ''}
+    </div>`).join('');
+  document.getElementById('lib-fermentation').innerHTML = `
+    <div class="lib-detail-grid">${items}</div>
+    <button class="add-custom-toggle" onclick="toggleAddForm('lib-fermentation')">+ Add custom fermentation type</button>
+    <div class="add-custom-form" id="lib-fermentation-form" style="display:none">
+      <h4>Add Custom Fermentation Type</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cft-name" placeholder="e.g. Kettle Sour" /></div>
+        <div class="form-group"><label>Icon (emoji)</label><input type="text" id="cft-icon" placeholder="🍺" maxlength="4" /></div>
+      </div>
+      <div class="form-group"><label>Description</label><input type="text" id="cft-desc" placeholder="Brief description…" /></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveCustomFermType()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddForm('lib-fermentation')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderLibYeast() {
+  const items = allYeasts().map(y => `
+    <div class="lib-detail-card${y._custom?' custom-entry':''}">
+      ${y._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('yeast','${escHtml(y.id)}')" title="Remove">✕</button>` : ''}
+      <div class="ldc-tag">${y.brand||''} · ${y.type||''}</div>
+      <div class="ldc-name">${escHtml(y.name)}</div>
+      <div class="ldc-row"><strong>Temp:</strong> ${y.temp_range||'—'}</div>
+      <div class="ldc-row"><strong>ABV tolerance:</strong> ${y.alcohol_tolerance||'—'}</div>
+      <div class="ldc-row" style="margin-top:6px;color:var(--muted)">${escHtml(y.character||y.profile||'')}</div>
+    </div>`).join('');
+  document.getElementById('lib-yeast').innerHTML = `
+    <div class="lib-detail-grid">${items}</div>
+    <button class="add-custom-toggle" onclick="toggleAddForm('lib-yeast')">+ Add custom yeast</button>
+    <div class="add-custom-form" id="lib-yeast-form" style="display:none">
+      <h4>Add Custom Yeast</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cy-name" placeholder="e.g. Lalvin 47B" /></div>
+        <div class="form-group"><label>Brand</label><input type="text" id="cy-brand" placeholder="e.g. Lalvin" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Temp Range</label><input type="text" id="cy-temp" placeholder="e.g. 59–86°F" /></div>
+        <div class="form-group"><label>ABV Tolerance</label><input type="text" id="cy-abv" placeholder="e.g. 14%" /></div>
+      </div>
+      <div class="form-group"><label>Character / Profile</label><input type="text" id="cy-char" placeholder="Flavor profile, best uses…" /></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveCustomYeast()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddForm('lib-yeast')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderLibRecipes() {
+  const items = Object.entries(RECIPE_TEMPLATES).map(([id, r]) => `
+    <div class="lib-detail-card">
+      <div class="ldc-tag">Default yeast: ${r.default_yeast||'—'}</div>
+      <div class="ldc-name">${escHtml(r.name)}</div>
+      <div class="ldc-row"><strong>Target OG:</strong> ${r.target_og}</div>
+      <div class="ldc-row"><strong>Crush:</strong> ${escHtml(r.crush_method||'—')}</div>
+      <div class="ldc-row" style="margin-top:8px"><strong>Per gallon:</strong></div>
+      ${r.per_gallon.map(i=>`<div class="ldc-row" style="padding-left:8px">· ${i.amount} ${escHtml(i.unit)} ${escHtml(i.name)}</div>`).join('')}
+    </div>`).join('');
+  document.getElementById('lib-recipes').innerHTML = `<div class="lib-detail-grid">${items}</div>`;
+}
+
+function toggleAddForm(section) {
+  const form = document.getElementById(section + '-form');
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
+// ─── Save Custom Entries ──────────────────────────────────────────────
+function saveCustomFruit() {
+  const name = document.getElementById('cf-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+  const entry = {
+    id: 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+    name, season: document.getElementById('cf-season').value.trim(),
+    lbs_per_gallon: parseFloat(document.getElementById('cf-lbs').value) || 6,
+    recipe_id: document.getElementById('cf-recipe').value,
+    notes: document.getElementById('cf-notes').value.trim(),
+    tags: ['custom'], acid:'unknown', sugar:'unknown',
+  };
+  const data = loadData();
+  data.custom_fruits = data.custom_fruits || [];
+  data.custom_fruits.push(entry);
+  saveData(data);
+  showToast(`"${name}" added to library!`, 'success');
+  renderLibFruits();
+}
+
+function saveCustomFermType() {
+  const name = document.getElementById('cft-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+  const entry = {
+    id: 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+    name, icon: document.getElementById('cft-icon').value.trim() || '⚗️',
+    description: document.getElementById('cft-desc').value.trim(),
+    so2_use: false,
+    timeline_days: { preparation:2, primary:{min:7,max:14}, secondary:{min:30,max:60}, clarification:{min:14,max:30}, aging:{min:90,max:180} },
+  };
+  const data = loadData();
+  data.custom_ferm_types = data.custom_ferm_types || [];
+  data.custom_ferm_types.push(entry);
+  saveData(data);
+  showToast(`"${name}" added to library!`, 'success');
+  renderLibFerm();
+}
+
+function saveCustomYeast() {
+  const name = document.getElementById('cy-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+  const entry = {
+    id: 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+    name, brand: document.getElementById('cy-brand').value.trim(),
+    type: 'custom',
+    temp_range: document.getElementById('cy-temp').value.trim(),
+    alcohol_tolerance: document.getElementById('cy-abv').value.trim(),
+    character: document.getElementById('cy-char').value.trim(),
+    best_for: [],
+  };
+  const data = loadData();
+  data.custom_yeasts = data.custom_yeasts || [];
+  data.custom_yeasts.push(entry);
+  saveData(data);
+  showToast(`"${name}" added to library!`, 'success');
+  renderLibYeast();
+}
+
+function deleteCustomEntry(type, id) {
+  if (!confirm('Remove this custom entry?')) return;
+  const data = loadData();
+  if (type === 'fruit')  data.custom_fruits     = (data.custom_fruits||[]).filter(x => x.id !== id);
+  if (type === 'ferm')   data.custom_ferm_types  = (data.custom_ferm_types||[]).filter(x => x.id !== id);
+  if (type === 'yeast')  data.custom_yeasts      = (data.custom_yeasts||[]).filter(x => x.id !== id);
+  saveData(data);
+  showToast('Entry removed.', 'success');
+  renderLibTab(_libTab);
 }
 
 // ─── Delete Batch ────────────────────────────────────────────────────
