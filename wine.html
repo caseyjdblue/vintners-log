@@ -4,38 +4,51 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vintner's Log — Wine Batch Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    /* ── Design Tokens ─────────────────────────────────────────── */
+    /* ── Design Tokens — WSWC-inspired palette ─────────────────── */
     :root {
-      --burgundy:   #6B1A1A;
-      --burgundy-d: #4A0F0F;
-      --burgundy-l: #8C2A2A;
-      --gold:       #C8963E;
-      --gold-l:     #E0B86A;
-      --cream:      #F9F3E8;
-      --cream-d:    #EDE4D0;
-      --ink:        #2C1810;
-      --ink-l:      #5A3A2A;
-      --muted:      #8A7060;
-      --green:      #3A7D44;
-      --green-l:    #EAF4EC;
-      --blue:       #2A5A8C;
-      --blue-l:     #EAF0F8;
-      --orange:     #C85A1A;
-      --orange-l:   #FDF0E8;
+      /* Primary — deep merlot */
+      --burgundy:   #4A1628;
+      --burgundy-d: #30091A;
+      --burgundy-l: #6B2440;
+      /* Accent — warm amber gold */
+      --gold:       #C9952A;
+      --gold-l:     #E4B86A;
+      /* Backgrounds */
+      --cream:      #FAF8F3;
+      --cream-d:    #F0EBE1;
+      /* Text */
+      --ink:        #1A0E14;
+      --ink-l:      #4A3040;
+      --muted:      #7A6070;
+      /* Status colors */
+      --green:      #2E7D52;
+      --green-l:    #E8F5EE;
+      --blue:       #1E5C8A;
+      --blue-l:     #E8F2FA;
+      --orange:     #C0521A;
+      --orange-l:   #FDF0E6;
       --white:      #FFFFFF;
-      --shadow-sm:  0 1px 3px rgba(44,24,16,.12);
-      --shadow-md:  0 4px 12px rgba(44,24,16,.15);
-      --shadow-lg:  0 8px 24px rgba(44,24,16,.18);
-      --radius:     10px;
-      --radius-lg:  16px;
+      /* Shadows */
+      --shadow-sm:  0 1px 4px rgba(74,22,40,.10);
+      --shadow-md:  0 4px 16px rgba(74,22,40,.14);
+      --shadow-lg:  0 8px 32px rgba(74,22,40,.18);
+      /* Shape */
+      --radius:     8px;
+      --radius-lg:  14px;
+      /* Typography */
+      --font-head:  'Playfair Display', Georgia, serif;
+      --font-body:  'Inter', 'Helvetica Neue', Arial, sans-serif;
     }
 
     /* ── Reset & Base ──────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 16px; }
     body {
-      font-family: 'Georgia', serif;
+      font-family: var(--font-body);
       background: var(--cream);
       color: var(--ink);
       min-height: 100vh;
@@ -63,9 +76,10 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 1.3rem;
-      font-weight: bold;
-      letter-spacing: .02em;
+      font-family: var(--font-head);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: .01em;
     }
     .app-header .logo .icon { font-size: 1.6rem; }
     .app-header .logo .sub {
@@ -230,8 +244,9 @@
       color: var(--cream);
     }
     .card-header .batch-name {
-      font-size: 1.1rem;
-      font-weight: bold;
+      font-family: var(--font-head);
+      font-size: 1.15rem;
+      font-weight: 600;
       line-height: 1.3;
       margin-bottom: 6px;
     }
@@ -331,7 +346,7 @@
       align-items: center;
       justify-content: space-between;
     }
-    .modal-header h2 { font-size: 1.2rem; }
+    .modal-header h2 { font-family: var(--font-head); font-size: 1.25rem; font-weight: 600; }
     .modal-close {
       background: transparent;
       color: var(--cream);
@@ -443,7 +458,7 @@
       flex-wrap: wrap;
       gap: 16px;
     }
-    .detail-hero h2 { font-size: 1.6rem; margin-bottom: 6px; }
+    .detail-hero h2 { font-family: var(--font-head); font-size: 1.7rem; font-weight: 700; margin-bottom: 6px; }
     .detail-hero .meta {
       display: flex;
       flex-wrap: wrap;
