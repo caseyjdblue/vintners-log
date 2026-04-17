@@ -814,10 +814,6 @@
         <p class="wz-subtitle">Tell us about this batch</p>
         <div class="form-group">
           <label>Fruit Source</label>
-          <div style="margin-bottom:8px">
-            <button class="src-btn active" id="src-garden" onclick="setWzSource('garden')">🌿 From my garden</button>
-            <button class="src-btn" id="src-purchase" onclick="setWzSource('purchase')">🛒 Purchased</button>
-          </div>
           <input type="text" id="wz-source-detail" placeholder="e.g. backyard trees, farmers market, local farm…" />
         </div>
         <div class="form-row">
@@ -910,17 +906,16 @@ function closeModal(id) {
 }
 
 // ─── Intake Wizard State ──────────────────────────────────────────────
-var wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null, source: 'garden' };
+var wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null };
 
 function openNewBatchModal() {
-  wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null, source: 'garden' };
+  wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null };
   document.getElementById('wz-year').value = new Date().getFullYear();
   document.getElementById('wz-start-date').value = '';
   document.getElementById('wz-gallons').value = '';
   document.getElementById('wz-abv').value = '';
   document.getElementById('wz-custom-fruit').value = '';
   document.getElementById('wz-source-detail').value = '';
-  setWzSource('garden');
   renderWzFruitGrid();
   wizardGoto(1);
   openModal('modal-new-batch');
@@ -973,8 +968,8 @@ function wizardBack() { wizardGoto(wzState.step - 1); }
 // Fruit grid
 function renderWzFruitGrid() {
   const grid = document.getElementById('wz-fruit-grid');
-  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🫐',
-    blackberry:'🫐', raspberry:'🫐', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🫐' };
+  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🔵',
+    blackberry:'⚫', raspberry:'🍓', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🟣' };
   grid.innerHTML = allFruits().map(f => `
     <div class="lib-card${wzState.fruitId===f.id?' selected':''}" onclick="selectWzFruit('${f.id}')">
       <div class="lc-icon">${icons[f.id]||'🍷'}</div>
@@ -1047,10 +1042,7 @@ function renderWzReview() {
   const templateId = fruit ? fruit.recipe_id : null;
   const ingredients = templateId ? scaleRecipe(templateId, gallons) : [];
   const timeline = ferm && startDate ? projectTimeline(wzState.fermId, startDate) : null;
-  const srcDetail = document.getElementById('wz-source-detail').value.trim();
-  const srcLabel = wzState.source === 'garden'
-    ? ('From garden' + (srcDetail ? ': ' + srcDetail : ''))
-    : ('Purchased' + (srcDetail ? ': ' + srcDetail : ''));
+  const srcLabel = document.getElementById('wz-source-detail').value.trim() || '—';
 
   const stageLabels = {
     preparation:'Preparation', primary_fermentation:'Primary Fermentation',
@@ -1100,10 +1092,7 @@ function createBatchFromWizard() {
   const abv = parseFloat(document.getElementById('wz-abv').value) || null;
   const startDate = document.getElementById('wz-start-date').value || null;
   const year = parseInt(document.getElementById('wz-year').value) || new Date().getFullYear();
-  const srcDetail = document.getElementById('wz-source-detail').value.trim();
-  const source = wzState.source === 'garden'
-    ? 'Home Garden' + (srcDetail ? ' — ' + srcDetail : '')
-    : srcDetail || 'Purchased';
+  const source = document.getElementById('wz-source-detail').value.trim();
   const batchType = buildBatchType(wzState.fruitId, wzState.fermId);
   const name = batchType + ' ' + year;
 
@@ -1174,8 +1163,8 @@ function renderLibTab(tab) {
 }
 
 function renderLibFruits() {
-  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🫐',
-    blackberry:'🫐', raspberry:'🫐', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🫐' };
+  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🔵',
+    blackberry:'⚫', raspberry:'🍓', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🟣' };
   const items = allFruits().map(f => `
     <div class="lib-detail-card${f._custom?' custom-entry':''}">
       ${f._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('fruit','${escHtml(f.id)}')" title="Remove">✕</button>` : ''}
@@ -1582,13 +1571,10 @@ function renderFruitSelectionStage(batch) {
   const d = batch.stages.fruit_selection || {};
   const isCompleted = batch.completed_stages.includes('fruit_selection');
   const vals = {
-    variety:       d.variety       || batch.fruit || '',
-    source:        d.source        || batch.source || 'Home Garden',
-    est_quantity:  d.est_quantity  || '',
-    act_quantity:  d.act_quantity  || '',
-    blossom_date:  d.blossom_date  || batch.blossom_date || '',
-    est_harvest:   d.est_harvest   || batch.harvest_date || '',
-    act_harvest:   d.act_harvest   || '',
+    variety:       d.variety      || batch.fruit || '',
+    quantity:      d.quantity     || d.act_quantity || d.est_quantity || '',
+    blossom_date:  d.blossom_date || batch.blossom_date || '',
+    act_harvest:   d.act_harvest  || '',
     brix:          d.brix          || '',
     ph:            d.ph            || '',
     quality:       d.quality       || '',
@@ -1615,22 +1601,8 @@ function renderFruitSelectionStage(batch) {
             <input type="text" id="fs-variety" value="${escHtml(vals.variety)}" placeholder="e.g. Bing, Rainier, Sweet Cherry" />
           </div>
           <div class="form-group">
-            <label>Source</label>
-            <select id="fs-source">
-              ${['Home Garden','Local Farm','Farmers Market','Wild Foraged','Commercial','Other']
-                .map(o => `<option${o === vals.source ? ' selected' : ''}>${o}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Estimated Quantity (lbs)</label>
-            <input type="number" id="fs-est-qty" value="${vals.est_quantity}" placeholder="e.g. 20" step="0.5" min="0" />
-            <p class="form-hint">How much fruit do you expect from harvest?</p>
-          </div>
-          <div class="form-group">
-            <label>Actual Quantity (lbs)</label>
-            <input type="number" id="fs-act-qty" value="${vals.act_quantity}" placeholder="Fill after harvest" step="0.5" min="0" />
+            <label>Fruit Quantity (lbs)</label>
+            <input type="number" id="fs-quantity" value="${vals.quantity || vals.act_quantity || vals.est_quantity}" placeholder="e.g. 20" step="0.5" min="0" />
           </div>
         </div>
 
@@ -1641,17 +1613,10 @@ function renderFruitSelectionStage(batch) {
             <input type="date" id="fs-blossom" value="${vals.blossom_date}" />
           </div>
           <div class="form-group">
-            <label>Estimated Harvest</label>
-            <input type="date" id="fs-est-harvest" value="${vals.est_harvest}" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
             <label>Actual Harvest Date</label>
             <input type="date" id="fs-act-harvest" value="${vals.act_harvest}" />
             <p class="form-hint">Fill in when you pick.</p>
           </div>
-          <div class="form-group"></div>
         </div>
 
         <div class="section-title">At Harvest — Quality Readings</div>
@@ -1695,11 +1660,8 @@ function saveFruitSelection(advance) {
   if (!batch.stages) batch.stages = {};
   batch.stages.fruit_selection = {
     variety:      document.getElementById('fs-variety').value.trim(),
-    source:       document.getElementById('fs-source').value,
-    est_quantity: document.getElementById('fs-est-qty').value,
-    act_quantity: document.getElementById('fs-act-qty').value,
+    quantity:     document.getElementById('fs-quantity').value,
     blossom_date: document.getElementById('fs-blossom').value,
-    est_harvest:  document.getElementById('fs-est-harvest').value,
     act_harvest:  document.getElementById('fs-act-harvest').value,
     brix:         document.getElementById('fs-brix').value,
     ph:           document.getElementById('fs-ph').value,
@@ -1709,10 +1671,9 @@ function saveFruitSelection(advance) {
   };
   // Sync top-level fields
   const fs = batch.stages.fruit_selection;
-  if (fs.variety)      batch.fruit         = fs.variety;
-  if (fs.blossom_date) batch.blossom_date  = fs.blossom_date;
-  if (fs.est_harvest)  batch.harvest_date  = fs.est_harvest;
-  if (fs.act_harvest)  batch.harvest_date  = fs.act_harvest;
+  if (fs.variety)      batch.fruit        = fs.variety;
+  if (fs.blossom_date) batch.blossom_date = fs.blossom_date;
+  if (fs.act_harvest)  batch.harvest_date = fs.act_harvest;
 
   if (advance) {
     if (!batch.completed_stages.includes('fruit_selection'))
