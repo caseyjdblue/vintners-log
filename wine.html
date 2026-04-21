@@ -726,6 +726,10 @@
     </div>
   </div>
   <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="exportData()" title="Download all data as JSON">💾 Export</button>
+    <label class="btn btn-ghost btn-sm" title="Restore from a previous export" style="cursor:pointer">
+      📂 Import<input type="file" accept=".json" onchange="importData(this)" style="display:none" />
+    </label>
     <button class="btn btn-ghost btn-sm" onclick="openLibrary()">📚 Library</button>
     <button class="btn btn-ghost btn-sm" onclick="openNewBatchModal()">+ New Batch</button>
   </div>
@@ -3154,6 +3158,40 @@ function revisitStage(stageId) {
   // Render with a temp object so current_stage in storage is preserved
   renderDetail({...batch, current_stage: stageId});
   showToast(`Editing: ${getStageInfo(stageId).label}`);
+}
+
+// ─── Export / Import ─────────────────────────────────────────────────
+function exportData() {
+  const json = JSON.stringify(loadData(), null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'vintners-log-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Data exported.', 'success');
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data.batches)) throw new Error('missing batches array');
+      const count = data.batches.length;
+      if (!confirm(`Import ${count} batch${count !== 1 ? 'es' : ''}? This replaces all current data.`)) return;
+      saveData(data);
+      renderDashboard();
+      showToast(`Imported ${count} batch${count !== 1 ? 'es' : ''}.`, 'success');
+    } catch {
+      showToast('Invalid file — use a Vintner\'s Log export.', 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 
 // ─── Init ────────────────────────────────────────────────────────────
