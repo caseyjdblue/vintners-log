@@ -486,6 +486,9 @@
       position: relative;
       cursor: default;
     }
+    .pipeline-step.done { cursor: pointer; }
+    .pipeline-step.done:hover .step-circle { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+    .pipeline-step.done:hover .step-label  { color: var(--gold); }
     .pipeline-step::before {
       content: '';
       position: absolute;
@@ -1363,7 +1366,8 @@ function renderDashboard() {
     total:      batches.length,
     planning:   batches.filter(b => ['fruit_selection','methodology','recipe'].includes(b.current_stage)).length,
     active:     batches.filter(b => ['preparation','primary_fermentation','secondary_fermentation','clarification'].includes(b.current_stage)).length,
-    finishing:  batches.filter(b => ['bottling','aging'].includes(b.current_stage)).length,
+    finishing:  batches.filter(b => ['bottling','aging'].includes(b.current_stage) && b.completed_stages?.length < STAGES.length).length,
+    complete:   batches.filter(b => b.completed_stages?.length === STAGES.length).length,
   };
 
   document.getElementById('stats-bar').innerHTML = `
@@ -1382,6 +1386,10 @@ function renderDashboard() {
     <div class="stat-card gold">
       <div class="val">${stats.finishing}</div>
       <div class="lbl">Finishing</div>
+    </div>
+    <div class="stat-card" style="border-left-color:var(--green)">
+      <div class="val" style="color:var(--green)">${stats.complete}</div>
+      <div class="lbl">Complete</div>
     </div>
   `;
 
@@ -1525,8 +1533,10 @@ function renderPipeline(batch) {
   const html = STAGES.map((s, i) => {
     let cls = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'pending';
     const icon = cls === 'done' ? '✓' : s.icon;
+    const click = cls === 'done' ? `onclick="revisitStage('${s.id}')"` : '';
+    const tip = cls === 'done' ? `title="Edit ${s.label}"` : `title="${s.label}"`;
     return `
-      <div class="pipeline-step ${cls}" title="${s.label}">
+      <div class="pipeline-step ${cls}" ${click} ${tip}>
         <div class="step-circle">${icon}</div>
         <div class="step-label">${s.label}</div>
       </div>`;
