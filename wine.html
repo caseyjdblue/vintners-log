@@ -3063,10 +3063,9 @@ function completeAging() { saveAging(true); }
 function renderCompletedStageSummary(stageObj, data, batch) {
   const pairs = [];
   if (stageObj.id === 'fruit_selection') {
-    if (data.variety)      pairs.push(['Variety', data.variety]);
-    if (data.est_quantity) pairs.push(['Est. Qty', data.est_quantity + ' lbs']);
-    if (data.act_quantity) pairs.push(['Actual Qty', data.act_quantity + ' lbs']);
-    if (data.act_harvest)  pairs.push(['Harvested', formatDate(data.act_harvest)]);
+    if (data.variety)   pairs.push(['Variety',  data.variety]);
+    if (data.quantity)  pairs.push(['Quantity', data.quantity + ' lbs']);
+    if (data.act_harvest) pairs.push(['Harvested', formatDate(data.act_harvest)]);
     if (data.brix)         pairs.push(['Brix', data.brix]);
     if (data.ph)           pairs.push(['pH', data.ph]);
   }
@@ -3142,10 +3141,8 @@ function revisitStage(stageId) {
   const data = loadData();
   const batch = data.batches.find(b => b.id === currentBatchId);
   if (!batch) return;
-  // Allow editing completed stages without regression
-  batch.current_stage = stageId;
-  saveData(data);
-  renderDetail(batch);
+  // Render with a temp object so current_stage in storage is preserved
+  renderDetail({...batch, current_stage: stageId});
   showToast(`Editing: ${getStageInfo(stageId).label}`);
 }
 
