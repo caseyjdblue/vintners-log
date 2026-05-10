@@ -1,0 +1,3675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vintner's Log — Wine Batch Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design Tokens — WSWC editorial palette ─────────────────── */
+    :root {
+      /* Primary — editorial charcoal (WSWC dark header/chrome) */
+      --charcoal:    #1A1C20;
+      --charcoal-l:  #2C3038;
+      --charcoal-xl: #3D4149;
+      /* Wine — deep merlot, used as a warm accent */
+      --wine:        #5C1A28;
+      --wine-l:      #8B2A3F;
+      /* Backward-compat aliases referenced in JS-generated HTML */
+      --burgundy:    var(--charcoal);
+      --burgundy-d:  var(--charcoal);
+      --burgundy-l:  var(--charcoal-l);
+      /* Accent — warm amber gold */
+      --gold:        #C49A28;
+      --gold-l:      #E0B84A;
+      --gold-pale:   #F7F1DC;
+      /* Backgrounds */
+      --cream:       #F8F5EE;
+      --cream-d:     #EDE8DC;
+      /* Text */
+      --ink:         #1A1C20;
+      --ink-l:       #3D3F45;
+      --muted:       #7A7870;
+      /* Status */
+      --green:       #2B6844;
+      --green-l:     #E6F2EC;
+      --blue:        #1A4A7A;
+      --blue-l:      #E6EEF8;
+      --orange:      #B5481A;
+      --orange-l:    #FDF0E6;
+      --white:       #FFFFFF;
+      /* Shadows — neutral, not wine-tinted */
+      --shadow-sm:   0 1px 3px rgba(26,28,32,.07), 0 1px 2px rgba(26,28,32,.04);
+      --shadow-md:   0 4px 20px rgba(26,28,32,.10), 0 2px 6px rgba(26,28,32,.05);
+      --shadow-lg:   0 12px 40px rgba(26,28,32,.14), 0 4px 12px rgba(26,28,32,.07);
+      /* Shape — tighter corners for editorial feel */
+      --radius:      3px;
+      --radius-lg:   6px;
+      /* Typography */
+      --font-head:   'Playfair Display', Georgia, serif;
+      --font-body:   'Inter', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* ── Reset & Base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; }
+    body {
+      font-family: var(--font-body);
+      background: var(--cream);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { color: var(--wine); text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: none; }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    .app-header {
+      background: var(--charcoal);
+      color: var(--cream);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 68px;
+      border-bottom: 1px solid rgba(196,154,40,.28);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .app-header .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-head);
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+    .app-header .logo .icon { font-size: 1.5rem; line-height: 1; }
+    .app-header .logo .sub {
+      font-size: .62rem;
+      font-weight: 400;
+      color: var(--gold);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      display: block;
+      line-height: 1;
+      margin-top: 3px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: var(--radius);
+      font-size: .78rem;
+      font-family: var(--font-body);
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      transition: all .15s;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+    }
+    .btn-primary {
+      background: var(--charcoal);
+      color: var(--cream);
+      border-color: var(--charcoal);
+    }
+    .btn-primary:hover { background: var(--charcoal-l); border-color: var(--charcoal-l); }
+    .btn-gold {
+      background: var(--gold);
+      color: var(--charcoal);
+      border-color: var(--gold);
+    }
+    .btn-gold:hover { background: var(--gold-l); border-color: var(--gold-l); }
+    .btn-outline {
+      background: transparent;
+      color: var(--charcoal);
+      border-color: var(--charcoal);
+    }
+    .btn-outline:hover { background: var(--charcoal); color: var(--cream); }
+    .btn-ghost {
+      background: transparent;
+      color: rgba(248,245,238,.8);
+      border-color: rgba(248,245,238,.22);
+      font-size: .7rem;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.08); border-color: rgba(248,245,238,.5); color: var(--cream); }
+    .btn-danger {
+      background: #b93020;
+      color: #fff;
+      border-color: #b93020;
+    }
+    .btn-danger:hover { background: #962818; }
+    .btn-sm { padding: 5px 11px; font-size: .7rem; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    .app-body { flex: 1; padding: 36px 32px; max-width: 1160px; margin: 0 auto; width: 100%; }
+
+    /* ── Views ─────────────────────────────────────────────────── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Dashboard ─────────────────────────────────────────────── */
+    .dashboard-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--cream-d);
+    }
+    .dashboard-header h1 {
+      font-family: var(--font-head);
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.1;
+    }
+    .dashboard-header h1 span {
+      font-family: var(--font-body);
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    /* Stats bar — unified strip */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      margin-bottom: 36px;
+      background: var(--cream-d);
+      border: 1px solid var(--cream-d);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      gap: 1px;
+    }
+    .stat-card {
+      background: var(--white);
+      padding: 20px 22px;
+      border-left: none;
+    }
+    .stat-card .val {
+      font-family: var(--font-head);
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .stat-card .lbl {
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-top: 6px;
+    }
+    .stat-card.green .val { color: var(--green); }
+    .stat-card.gold  .val { color: var(--gold-d, #9A7620); }
+    .stat-card.orange .val { color: var(--orange); }
+
+    /* Batch grid */
+    .batch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .empty-state {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 14px; }
+    .empty-state p { font-size: 1rem; }
+
+    /* Batch card */
+    .batch-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      cursor: pointer;
+      transition: box-shadow .22s, transform .18s, border-color .18s;
+      border: 1px solid var(--cream-d);
+      display: flex;
+      flex-direction: column;
+    }
+    .batch-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-3px);
+      border-color: rgba(196,154,40,.55);
+    }
+    .card-header {
+      background: var(--charcoal);
+      padding: 18px 20px 16px;
+      color: var(--cream);
+      position: relative;
+    }
+    .card-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--gold) 0%, transparent 100%);
+      opacity: .7;
+    }
+    .card-header .batch-name {
+      font-family: var(--font-head);
+      font-size: 1.15rem;
+      font-weight: 600;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+    .card-header .batch-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: .72rem;
+      color: rgba(248,245,238,.55);
+      letter-spacing: .03em;
+    }
+    .card-body { padding: 16px 20px; flex: 1; }
+    .card-footer {
+      padding: 11px 20px;
+      background: var(--cream);
+      border-top: 1px solid var(--cream-d);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Stage pill */
+    .stage-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 2px;
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+    }
+    .stage-planning    { background: var(--blue-l);   color: var(--blue); }
+    .stage-preparation { background: var(--orange-l); color: var(--orange); }
+    .stage-fermentation{ background: var(--green-l);  color: var(--green); }
+    .stage-aging       { background: var(--gold-pale); color: #7A5010; }
+    .stage-complete    { background: var(--cream-d);  color: var(--muted); }
+
+    /* Mini stage progress */
+    .mini-pipeline {
+      display: flex;
+      gap: 2px;
+      margin: 10px 0 4px;
+    }
+    .mini-stage {
+      height: 3px;
+      flex: 1;
+      border-radius: 1px;
+      background: var(--cream-d);
+      transition: background .3s;
+    }
+    .mini-stage.done    { background: var(--green); }
+    .mini-stage.current { background: var(--gold); }
+    .mini-stage.pending { background: var(--cream-d); }
+
+    /* Countdown chip */
+    .countdown-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--gold-pale);
+      color: #7A5010;
+      border-radius: 2px;
+      padding: 3px 9px;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    /* ── Modal ─────────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,28,32,.62);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 560px;
+      max-height: 90vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      background: var(--charcoal);
+      color: var(--cream);
+      padding: 20px 24px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--gold);
+    }
+    .modal-header h2 {
+      font-family: var(--font-head);
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: .01em;
+    }
+    .modal-close {
+      background: transparent;
+      color: var(--cream);
+      font-size: 1.4rem;
+      line-height: 1;
+      padding: 0 4px;
+      opacity: .55;
+      cursor: pointer;
+      border: none;
+      transition: opacity .15s;
+    }
+    .modal-close:hover { opacity: 1; }
+    .modal-body { padding: 24px; }
+    .modal-footer {
+      padding: 16px 24px;
+      background: var(--cream);
+      border-top: 1px solid var(--cream-d);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    /* ── Form Styles ───────────────────────────────────────────── */
+    .form-group { margin-bottom: 18px; }
+    .form-group label {
+      display: block;
+      font-size: .68rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--cream-d);
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: .95rem;
+      color: var(--ink);
+      background: var(--white);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(196,154,40,.12);
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-hint { font-size: .75rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Toast ─────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 9999;
+    }
+    .toast {
+      background: var(--charcoal);
+      color: var(--cream);
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      font-size: .88rem;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      transform: translateY(8px);
+      animation: toastIn .2s forwards, toastOut .3s 2.8s forwards;
+      max-width: 320px;
+      border-left: 3px solid var(--gold);
+    }
+    .toast.success { background: var(--green); border-left-color: rgba(255,255,255,.3); }
+    .toast.error   { background: #b93020; border-left-color: rgba(255,255,255,.3); }
+    @keyframes toastIn  { to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { to { opacity: 0; transform: translateY(8px); } }
+
+    /* ── Batch Detail View ─────────────────────────────────────── */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      padding: 6px 0;
+      margin-bottom: 20px;
+      transition: color .15s;
+    }
+    .back-btn:hover { color: var(--ink); }
+
+    .detail-hero {
+      background: var(--charcoal);
+      color: var(--cream);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      border-bottom: 3px solid var(--gold);
+    }
+    .detail-hero h2 {
+      font-family: var(--font-head);
+      font-size: 2.1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      line-height: 1.15;
+    }
+    .detail-hero .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: .76rem;
+      color: rgba(248,245,238,.55);
+      letter-spacing: .03em;
+    }
+    .detail-hero .meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* Stage Pipeline */
+    .stage-pipeline {
+      display: flex;
+      align-items: center;
+      margin-bottom: 32px;
+      overflow-x: auto;
+      padding: 20px 0 16px;
+      gap: 0;
+      border-bottom: 1px solid var(--cream-d);
+    }
+    .pipeline-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 68px;
+      position: relative;
+      cursor: default;
+    }
+    .pipeline-step.done { cursor: pointer; }
+    .pipeline-step.done:hover .step-circle { background: var(--gold); border-color: var(--gold); color: var(--charcoal); }
+    .pipeline-step.done:hover .step-label  { color: var(--gold); }
+    .pipeline-step::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: -50%;
+      width: 100%;
+      height: 2px;
+      background: var(--cream-d);
+      z-index: 0;
+    }
+    .pipeline-step:first-child::before { display: none; }
+    .pipeline-step.done::before    { background: var(--green); }
+    .pipeline-step.current::before { background: var(--gold); }
+
+    .step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .88rem;
+      border: 2px solid var(--cream-d);
+      background: var(--white);
+      position: relative;
+      z-index: 1;
+      transition: all .2s;
+    }
+    .pipeline-step.done    .step-circle { background: var(--green);  border-color: var(--green);  color: #fff; font-size: .78rem; }
+    .pipeline-step.current .step-circle { background: var(--gold);   border-color: var(--gold);   color: var(--charcoal); box-shadow: 0 0 0 4px rgba(196,154,40,.2); }
+    .pipeline-step.pending .step-circle { background: var(--white);  border-color: var(--cream-d); color: var(--muted); }
+
+    .step-label {
+      font-size: .6rem;
+      text-align: center;
+      margin-top: 6px;
+      color: var(--muted);
+      line-height: 1.2;
+      max-width: 60px;
+      letter-spacing: .02em;
+    }
+    .pipeline-step.done    .step-label { color: var(--green); font-weight: 700; }
+    .pipeline-step.current .step-label { color: var(--gold);  font-weight: 700; }
+
+    /* Stage Content Card */
+    .stage-card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+      overflow: hidden;
+      border: 1px solid var(--cream-d);
+    }
+    .stage-card-header {
+      background: var(--cream);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--cream-d);
+    }
+    .stage-card-header h3 {
+      font-family: var(--font-head);
+      font-size: 1.15rem;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .stage-card-body { padding: 24px; }
+    .stage-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 16px 24px;
+      background: var(--cream);
+      border-top: 1px solid var(--cream-d);
+    }
+    .stage-actions .hint { font-size: .78rem; color: var(--muted); }
+
+    /* Section divider inside stage */
+    .section-title {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .11em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--cream-d);
+      padding-bottom: 8px;
+      margin: 24px 0 14px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    /* Info box */
+    .info-box {
+      background: var(--blue-l);
+      border-left: 3px solid var(--blue);
+      padding: 12px 16px;
+      font-size: .85rem;
+      color: var(--blue);
+      margin-bottom: 20px;
+      line-height: 1.55;
+    }
+    .info-box.cherry {
+      background: #FBF3F4;
+      border-left-color: var(--wine);
+      color: var(--wine-l);
+    }
+
+    /* Completed stage banner */
+    .completed-banner {
+      background: var(--green-l);
+      border: 1px solid rgba(43,104,68,.25);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: .85rem;
+      color: var(--green);
+      margin-bottom: 16px;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    .app-footer {
+      text-align: center;
+      padding: 16px;
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      border-top: 1px solid var(--cream-d);
+    }
+
+    /* ── Intake Wizard ──────────────────────────────────────────── */
+    .modal-wide { max-width: 620px; width: 96vw; }
+    .wizard-progress {
+      display: flex; align-items: center; justify-content: center;
+      gap: 4px; padding: 14px 24px 0; background: var(--cream);
+      border-bottom: 1px solid var(--cream-d);
+    }
+    .wz-step {
+      font-family: var(--font-body); font-size: .65rem; font-weight: 700;
+      color: var(--muted); padding: 5px 11px; border-radius: 2px;
+      letter-spacing: .07em; text-transform: uppercase; transition: all .2s;
+    }
+    .wz-step.active { background: var(--charcoal); color: var(--cream); }
+    .wz-step.done   { background: var(--green-l); color: var(--green); }
+    .wz-sep { color: var(--cream-d); font-size: .8rem; }
+    .wz-subtitle { font-size: .9rem; color: var(--ink-l); margin-bottom: 18px; }
+    .fruit-grid, .ferm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: 8px; }
+    .lib-card {
+      border: 1px solid var(--cream-d); border-radius: var(--radius); padding: 12px;
+      cursor: pointer; transition: all .18s; background: var(--white);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .lib-card:hover { border-color: var(--gold); background: var(--cream); }
+    .lib-card.selected { border-color: var(--charcoal); background: #F0F0EE; }
+    .lib-card .lc-icon { font-size: 1.4rem; }
+    .lib-card .lc-name { font-family: var(--font-head); font-size: .95rem; font-weight: 600; }
+    .lib-card .lc-sub  { font-size: .72rem; color: var(--muted); }
+    .yeast-list { display: flex; flex-direction: column; gap: 8px; }
+    .yeast-card {
+      border: 1px solid var(--cream-d); border-radius: var(--radius); padding: 12px 16px;
+      cursor: pointer; transition: all .18s; background: var(--white);
+    }
+    .yeast-card:hover { border-color: var(--gold); background: var(--cream); }
+    .yeast-card.selected { border-color: var(--charcoal); background: #F0F0EE; }
+    .yeast-card .yc-name { font-family: var(--font-head); font-size: 1rem; font-weight: 600; }
+    .yeast-card .yc-char { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+    .yeast-card .yc-rec  { font-size: .68rem; color: var(--green); font-weight: 700; margin-top: 4px; text-transform: uppercase; letter-spacing: .05em; }
+    .src-btn {
+      padding: 7px 15px; border-radius: 2px; border: 1px solid var(--cream-d);
+      background: var(--white); color: var(--ink-l); font-family: var(--font-body);
+      font-size: .78rem; cursor: pointer; transition: all .18s; margin-right: 8px;
+      font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    }
+    .src-btn.active { background: var(--charcoal); border-color: var(--charcoal); color: var(--cream); }
+    /* Review panel */
+    .review-section { margin-bottom: 18px; }
+    .review-section h4 { font-family: var(--font-head); font-size: 1rem; color: var(--ink); margin-bottom: 8px; }
+    .review-label { font-size: .65rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin-bottom: 4px; font-weight: 700; }
+    .review-value { font-size: .95rem; color: var(--ink); }
+    .ing-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    .ing-table th { text-align: left; padding: 5px 8px; color: var(--muted); font-weight: 700; font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; border-bottom: 1px solid var(--cream-d); }
+    .ing-table td { padding: 6px 8px; border-bottom: 1px solid var(--cream-d); }
+    .timeline-row { display: flex; justify-content: space-between; align-items: center; font-size: .83rem; padding: 6px 0; border-bottom: 1px solid var(--cream-d); }
+    .timeline-row:last-child { border-bottom: none; }
+    .timeline-stage { font-weight: 600; color: var(--ink-l); }
+    .timeline-dates { color: var(--muted); }
+
+    /* ── Library Browser ────────────────────────────────────────── */
+    .modal-xl { max-width: 780px; width: 96vw; max-height: 90vh; display: flex; flex-direction: column; }
+    .modal-xl .modal-body { overflow-y: auto; flex: 1; }
+    .lib-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--cream-d); margin-bottom: 20px; }
+    .lib-tab {
+      padding: 10px 18px; font-family: var(--font-body); font-size: .68rem; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted); border: none; background: transparent; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .18s;
+    }
+    .lib-tab.active { color: var(--ink); border-bottom-color: var(--charcoal); }
+    .lib-tab:hover:not(.active) { color: var(--ink); }
+    .lib-section { display: none; }
+    .lib-section.active { display: block; }
+    .lib-detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 12px; margin-bottom: 20px; }
+    .lib-detail-card {
+      border: 1px solid var(--cream-d); border-radius: var(--radius); padding: 16px;
+      background: var(--white); position: relative; transition: border-color .18s;
+    }
+    .lib-detail-card:hover { border-color: rgba(196,154,40,.5); }
+    .lib-detail-card.custom-entry { border-color: var(--gold); background: #FDFBF4; }
+    .lib-detail-card .ldc-name { font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+    .lib-detail-card .ldc-tag { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+    .lib-detail-card .ldc-row { font-size: .8rem; color: var(--ink-l); margin-bottom: 3px; }
+    .lib-detail-card .ldc-row strong { color: var(--ink); }
+    .lib-detail-card .ldc-delete {
+      position: absolute; top: 8px; right: 8px; background: none; border: none;
+      color: var(--muted); font-size: 1rem; cursor: pointer; padding: 2px 6px;
+      border-radius: 2px; line-height: 1;
+    }
+    .lib-detail-card .ldc-delete:hover { background: #FEE2E2; color: var(--orange); }
+    .add-custom-form {
+      background: var(--cream); border: 1px solid var(--cream-d); border-radius: var(--radius);
+      padding: 18px; margin-top: 12px;
+    }
+    .add-custom-form h4 { font-family: var(--font-head); font-size: .95rem; margin-bottom: 14px; color: var(--ink); }
+    .add-custom-toggle {
+      display: inline-flex; align-items: center; gap: 6px; font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--ink-l); cursor: pointer; background: none; border: none;
+      padding: 4px 0; margin-top: 8px; transition: color .15s;
+    }
+    .add-custom-toggle:hover { color: var(--charcoal); }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ══════════════════════════════════════════════════════ -->
+<header class="app-header">
+  <div class="logo">
+    <span class="icon">🍷</span>
+    <div>
+      Vintner's Log
+      <span class="sub">Wine Batch Manager</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="exportData()" title="Download all data as JSON">💾 Export</button>
+    <label class="btn btn-ghost btn-sm" title="Restore from a previous export" style="cursor:pointer">
+      📂 Import<input type="file" accept=".json" onchange="importData(this)" style="display:none" />
+    </label>
+    <button class="btn btn-ghost btn-sm" onclick="openLibrary()">📚 Library</button>
+    <button class="btn btn-ghost btn-sm" onclick="openNewBatchModal()">+ New Batch</button>
+  </div>
+</header>
+
+<!-- ═══ MAIN BODY ════════════════════════════════════════════════════ -->
+<main class="app-body">
+
+  <!-- BATCH DETAIL VIEW -->
+  <div id="view-detail" class="view">
+
+    <button class="back-btn" onclick="showDashboard()">&#8592; All Batches</button>
+
+    <!-- Hero -->
+    <div class="detail-hero" id="detail-hero"></div>
+
+    <!-- Stage Pipeline -->
+    <div class="stage-pipeline" id="detail-pipeline"></div>
+
+    <!-- Stage Content -->
+    <div id="detail-stage-content"></div>
+
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div id="view-dashboard" class="view active">
+    <div class="dashboard-header">
+      <h1>
+        My Batches
+        <span>Track every stage from fruit to bottle</span>
+      </h1>
+      <button class="btn btn-primary" onclick="openNewBatchModal()">+ New Batch</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="stats-bar"></div>
+
+    <!-- Batch grid -->
+    <div class="batch-grid" id="batch-grid"></div>
+  </div>
+
+</main>
+
+<!-- ═══ FOOTER ═══════════════════════════════════════════════════════ -->
+<footer class="app-footer">
+  Vintner's Log &mdash; Full lifecycle: Fruit Selection → Methodology → Recipe → Preparation → Fermentation → Bottling → Aging
+</footer>
+
+<!-- ═══ NEW BATCH WIZARD ═════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-new-batch">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h2>🍇 New Batch</h2>
+      <button class="modal-close" onclick="closeWizard()">&times;</button>
+    </div>
+    <div class="wizard-progress" id="wz-progress">
+      <div class="wz-step active" id="wz-prog-1">Fruit</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-2">Method</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-3">Yeast</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-4">Details</div>
+      <div class="wz-sep">›</div>
+      <div class="wz-step" id="wz-prog-5">Review</div>
+    </div>
+    <div class="modal-body">
+      <!-- Step 1: Fruit -->
+      <div class="wz-panel" id="wz-panel-1">
+        <p class="wz-subtitle">What fruit are you working with?</p>
+        <div class="fruit-grid" id="wz-fruit-grid"></div>
+        <div class="form-group" style="margin-top:14px">
+          <label>Custom fruit (if not listed above)</label>
+          <input type="text" id="wz-custom-fruit" placeholder="e.g. Gooseberry, Mango…" />
+        </div>
+      </div>
+      <!-- Step 2: Fermentation Type -->
+      <div class="wz-panel" id="wz-panel-2" style="display:none">
+        <p class="wz-subtitle">How do you want to ferment?</p>
+        <div class="ferm-grid" id="wz-ferm-grid"></div>
+      </div>
+      <!-- Step 3: Yeast -->
+      <div class="wz-panel" id="wz-panel-3" style="display:none">
+        <p class="wz-subtitle">Choose your yeast strain</p>
+        <div class="yeast-list" id="wz-yeast-list"></div>
+      </div>
+      <!-- Step 4: Batch Details -->
+      <div class="wz-panel" id="wz-panel-4" style="display:none">
+        <p class="wz-subtitle">Tell us about this batch</p>
+        <div class="form-group">
+          <label>Fruit Source</label>
+          <input type="text" id="wz-source-detail" placeholder="e.g. backyard trees, farmers market, local farm…" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start / Harvest Date</label>
+            <input type="date" id="wz-start-date" />
+            <p class="form-hint">Can be updated later if not known yet.</p>
+          </div>
+          <div class="form-group">
+            <label>Vintage Year</label>
+            <input type="number" id="wz-year" min="2000" max="2100" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Batch Size (gallons)</label>
+            <input type="number" id="wz-gallons" placeholder="3" step="0.5" min="0.5" />
+          </div>
+          <div class="form-group">
+            <label>Target ABV %</label>
+            <input type="number" id="wz-abv" placeholder="12" step="0.5" min="5" max="20" />
+          </div>
+        </div>
+      </div>
+      <!-- Step 5: Review -->
+      <div class="wz-panel" id="wz-panel-5" style="display:none">
+        <div id="wz-review-content"></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between">
+      <button class="btn btn-outline" id="wz-back-btn" onclick="wizardBack()" style="display:none">← Back</button>
+      <div style="display:flex;gap:10px;margin-left:auto">
+        <button class="btn btn-outline" onclick="closeWizard()">Cancel</button>
+        <button class="btn btn-primary" id="wz-next-btn" onclick="wizardNext()">Next →</button>
+        <button class="btn btn-gold" id="wz-create-btn" onclick="createBatchFromWizard()" style="display:none">Start Batch</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LIBRARY BROWSER MODAL ════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-library">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <h2>📚 Library</h2>
+      <button class="modal-close" onclick="closeModal('modal-library')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="lib-tabs">
+        <button class="lib-tab active" onclick="switchLibTab('fruits')">🍒 Fruits</button>
+        <button class="lib-tab" onclick="switchLibTab('fermentation')">⚗️ Fermentation</button>
+        <button class="lib-tab" onclick="switchLibTab('yeast')">🧫 Yeast</button>
+        <button class="lib-tab" onclick="switchLibTab('recipes')">📋 Recipes</button>
+      </div>
+      <div class="lib-section active" id="lib-fruits"></div>
+      <div class="lib-section" id="lib-fermentation"></div>
+      <div class="lib-section" id="lib-yeast"></div>
+      <div class="lib-section" id="lib-recipes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-library')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TOAST CONTAINER ═══════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ═══ SHARED CORE (also used by wine-tests.html) ═══════════════════ -->
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  wine-core.js — pure logic & data layer for Vintner's Log
+//  Shared between wine.html (the app) and wine-tests.html (the tests)
+//  No DOM dependencies — safe to unit test directly.
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── Constants ──────────────────────────────────────────────────────
+var STORAGE_KEY = 'vintners_log_v1';
+
+var STAGES = [
+  { id: 'fruit_selection',        label: 'Fruit Selection',   icon: '🍒', group: 'planning' },
+  { id: 'methodology',            label: 'Methodology',       icon: '📋', group: 'planning' },
+  { id: 'recipe',                 label: 'Recipe',            icon: '🧪', group: 'planning' },
+  { id: 'preparation',            label: 'Preparation',       icon: '⚗️',  group: 'preparation' },
+  { id: 'primary_fermentation',   label: 'Primary Ferm.',     icon: '🫧', group: 'fermentation' },
+  { id: 'secondary_fermentation', label: 'Secondary Ferm.',   icon: '🔬', group: 'fermentation' },
+  { id: 'clarification',          label: 'Clarification',     icon: '✨', group: 'fermentation' },
+  { id: 'bottling',               label: 'Bottling',          icon: '🍾', group: 'aging' },
+  { id: 'aging',                  label: 'Aging',             icon: '🪵', group: 'aging' },
+];
+
+var STAGE_IDS = STAGES.map(s => s.id);
+
+var GROUP_CLASS = {
+  planning:     'stage-planning',
+  preparation:  'stage-preparation',
+  fermentation: 'stage-fermentation',
+  aging:        'stage-aging',
+  complete:     'stage-complete',
+};
+
+// ─── Data Layer ──────────────────────────────────────────────────────
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : { batches: [] };
+  } catch { return { batches: [] }; }
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getData() { return loadData(); }
+
+function seedCherryBatch() {
+  const data = loadData();
+  const already = data.batches.find(b => b.id === 'cherry-2026-seed');
+  if (already) return;
+
+  const cherryBatch = {
+    id: 'cherry-2026-seed',
+    name: 'Backyard Sweet Cherry 2026',
+    fruit: 'Sweet Cherry',
+    year: 2026,
+    gallons: 3,
+    source: 'Home Garden',
+    harvest_date: '2026-06-20',
+    blossom_date: '2026-04-11',
+    current_stage: 'fruit_selection',
+    completed_stages: [],
+    created: new Date().toISOString(),
+    notes: 'Two sweet cherry trees in the backyard blossomed April 11, 2026. Estimated harvest late June. Planning a 3-gallon batch.',
+    stages: {}
+  };
+
+  data.batches.unshift(cherryBatch);
+  saveData(data);
+}
+
+// ─── Utilities ───────────────────────────────────────────────────────
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''));
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function daysUntil(isoDate) {
+  if (!isoDate) return null;
+  const target = new Date(isoDate + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.ceil((target - now) / 86400000);
+}
+
+function stageIndex(stageId) {
+  return STAGE_IDS.indexOf(stageId);
+}
+
+function getStageInfo(stageId) {
+  return STAGES.find(s => s.id === stageId) || STAGES[0];
+}
+
+function batchProgress(batch) {
+  const idx = stageIndex(batch.current_stage);
+  return { current: idx, total: STAGES.length };
+}
+
+function batchGroupClass(batch) {
+  if (batch.completed_stages?.length === STAGES.length) return 'stage-complete';
+  const info = getStageInfo(batch.current_stage);
+  return GROUP_CLASS[info.group] || 'stage-planning';
+}
+
+// ─── HTML Escape ──────────────────────────────────────────────────────
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── Cherry Recipe Defaults ──────────────────────────────────────────
+// Extracted so tests can verify scaling without parsing the stage renderer.
+function cherryRecipeDefaults(gallons) {
+  return [
+    { name: 'Sweet Cherries',          amount: (6.5 * gallons).toFixed(1), unit: 'lbs' },
+    { name: 'Granulated Sugar',        amount: (2.0 * gallons).toFixed(1), unit: 'lbs' },
+    { name: 'Water',                   amount: (0.6 * gallons).toFixed(2), unit: 'gallons' },
+    { name: 'Pectic Enzyme',           amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Acid Blend',              amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Yeast Nutrient',          amount: (1.0 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Potassium Metabisulfite', amount: (0.25 * gallons).toFixed(2), unit: 'tsp' },
+  ];
+}
+
+// ─── ABV Estimator ────────────────────────────────────────────────────
+function estimateAbv(og, fg) {
+  return parseFloat(((og - fg) * 131.25).toFixed(1));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LIBRARY — Fruits, Fermentation Types, Yeast, Recipes
+// ═══════════════════════════════════════════════════════════════════
+
+var FRUIT_LIBRARY = [
+  { id:'sweet_cherry', name:'Sweet Cherry', varieties:['Bing','Rainier','Chelan','Lapins','Backyard Sweet'],
+    season:'June–July', lbs_per_gallon:{min:5,ideal:6.5,max:8}, brix_typical:{min:18,max:24},
+    ph_typical:{min:3.3,max:3.8}, acid:'low', sugar:'high',
+    notes:'High sugar, mild acid. Add acid blend. Produces rich, fruit-forward wines. Color deepens with skin contact.',
+    tags:['stone fruit','low acid','high sugar'], recipe_id:'stone_fruit' },
+
+  { id:'sour_cherry', name:'Sour / Tart Cherry', varieties:['Montmorency','Morello','Balaton'],
+    season:'July', lbs_per_gallon:{min:4,ideal:6,max:8}, brix_typical:{min:14,max:18},
+    ph_typical:{min:3.0,max:3.4}, acid:'high', sugar:'medium',
+    notes:'Bright acidity, complex flavor. May need sugar addition. Outstanding dessert wine potential.',
+    tags:['stone fruit','high acid','tart'], recipe_id:'stone_fruit' },
+
+  { id:'concord_grape', name:'Concord Grape', varieties:['Concord','Niagara','Catawba'],
+    season:'Sept–Oct', lbs_per_gallon:{min:6,ideal:8,max:10}, brix_typical:{min:14,max:18},
+    ph_typical:{min:3.0,max:3.5}, acid:'medium', sugar:'medium',
+    notes:'Classic foxy grape character. Good tannin structure. Lower brix than wine grapes — chaptalization often needed.',
+    tags:['grape','medium acid','foxy'], recipe_id:'grape' },
+
+  { id:'blueberry', name:'Blueberry', varieties:['Highbush','Lowbush','Rabbiteye','Wild'],
+    season:'July–Aug', lbs_per_gallon:{min:5,ideal:7,max:9}, brix_typical:{min:12,max:16},
+    ph_typical:{min:3.1,max:3.6}, acid:'medium', sugar:'low-medium',
+    notes:'Requires pectic enzyme — very pectin-rich. Deep color. Add sugar to reach OG. Pairs well with oak.',
+    tags:['berry','medium acid','deep color'], recipe_id:'berry' },
+
+  { id:'blackberry', name:'Blackberry', varieties:['Marionberry','Boysenberry','Wild Blackberry','Loganberry'],
+    season:'July–Sept', lbs_per_gallon:{min:4,ideal:6,max:8}, brix_typical:{min:10,max:15},
+    ph_typical:{min:3.0,max:3.5}, acid:'medium-high', sugar:'low-medium',
+    notes:'Rich color and tannin. Earthy, bramble notes. Freeze first to maximize juice extraction.',
+    tags:['berry','medium-high acid','tannic'], recipe_id:'berry' },
+
+  { id:'raspberry', name:'Raspberry', varieties:['Heritage','Tulameen','Wild Red','Black Raspberry'],
+    season:'June–Aug', lbs_per_gallon:{min:4,ideal:6,max:8}, brix_typical:{min:10,max:14},
+    ph_typical:{min:2.9,max:3.4}, acid:'high', sugar:'low',
+    notes:'Vibrant color and aroma. High acid — sugar addition required. Pairs beautifully with 71B yeast.',
+    tags:['berry','high acid','aromatic'], recipe_id:'berry' },
+
+  { id:'peach', name:'Peach / Nectarine', varieties:['Elberta','Reliance','Contender','Nectarine'],
+    season:'July–Sept', lbs_per_gallon:{min:5,ideal:7,max:9}, brix_typical:{min:10,max:16},
+    ph_typical:{min:3.3,max:4.0}, acid:'low', sugar:'medium',
+    notes:'Delicate aroma — avoid high temps during fermentation. Use Côte des Blancs yeast. Pectic enzyme essential.',
+    tags:['stone fruit','low acid','delicate'], recipe_id:'stone_fruit' },
+
+  { id:'apple', name:'Apple / Crabapple', varieties:['Gravenstein','Honeycrisp','Crabapple','Fuji','Wild Apple'],
+    season:'Aug–Oct', lbs_per_gallon:{min:8,ideal:12,max:16}, brix_typical:{min:10,max:14},
+    ph_typical:{min:3.2,max:3.8}, acid:'medium', sugar:'medium',
+    notes:'Best pressed into juice. Produces a cider-wine hybrid. MLF optional for softening. Versatile base for blends.',
+    tags:['pome fruit','medium acid','crisp'], recipe_id:'apple' },
+
+  { id:'elderberry', name:'Elderberry', varieties:['American','European','Sambucus'],
+    season:'Aug–Sept', lbs_per_gallon:{min:2,ideal:3,max:4}, brix_typical:{min:10,max:14},
+    ph_typical:{min:3.4,max:4.0}, acid:'medium', sugar:'low',
+    notes:'Very concentrated — use less fruit per gallon. Extremely deep color and tannin. Must be fully ripe; raw berries toxic.',
+    tags:['berry','medium acid','high tannin','concentrated'], recipe_id:'berry' },
+
+  { id:'plum', name:'Plum / Damson', varieties:['Italian Prune','Damson','Greengage','Santa Rosa','Wild Plum'],
+    season:'Aug–Sept', lbs_per_gallon:{min:5,ideal:7,max:9}, brix_typical:{min:14,max:20},
+    ph_typical:{min:3.0,max:3.5}, acid:'medium', sugar:'medium-high',
+    notes:'Rich stone-fruit character with good tannin. Remove pits before fermenting. Pairs well with RC212.',
+    tags:['stone fruit','medium acid','rich'], recipe_id:'stone_fruit' },
+];
+
+var FERMENTATION_TYPES = [
+  { id:'traditional', name:'Traditional', icon:'🍶',
+    description:'Controlled fermentation with commercial yeast at stable room temperature. Predictable, clean results.',
+    so2_use:true, timeline_days:{ preparation:2, primary:{min:7,max:14}, secondary:{min:30,max:60}, clarification:{min:14,max:30}, aging:{min:90,max:180} },
+    notes:'Best for beginners. Most predictable flavor profile. Wide yeast selection available.',
+    recommended_for:['sweet_cherry','blueberry','peach','plum'] },
+
+  { id:'wild', name:'Wild / Natural', icon:'🌿',
+    description:'Fermentation driven by native yeasts on the fruit skins and in the environment. Unpredictable but complex.',
+    so2_use:false, timeline_days:{ preparation:3, primary:{min:14,max:28}, secondary:{min:45,max:90}, clarification:{min:21,max:45}, aging:{min:180,max:365} },
+    notes:'Higher risk of off-flavors. Requires careful monitoring. Produces terroir-driven, complex wines.',
+    recommended_for:['concord_grape','apple','elderberry'] },
+
+  { id:'cold', name:'Cold Fermentation', icon:'❄️',
+    description:'Low-temperature fermentation (55–65°F) to preserve delicate aromatics. Slower but fragrant results.',
+    so2_use:true, timeline_days:{ preparation:2, primary:{min:14,max:21}, secondary:{min:45,max:90}, clarification:{min:14,max:21}, aging:{min:60,max:120} },
+    notes:'Ideal for aromatic fruits like peach, raspberry, and elderflower. Needs temperature control.',
+    recommended_for:['peach','raspberry','elderberry'] },
+
+  { id:'quick', name:'Quick / Early Drinking', icon:'⚡',
+    description:'Optimized for fast turnaround. Commercial yeast, minimal aging. Ready in 8–12 weeks.',
+    so2_use:true, timeline_days:{ preparation:1, primary:{min:7,max:10}, secondary:{min:14,max:21}, clarification:{min:7,max:14}, aging:{min:30,max:60} },
+    notes:'Sacrifices complexity for speed. Great for high-production summers with lots of fruit.',
+    recommended_for:['blueberry','blackberry','concord_grape'] },
+
+  { id:'semi_carbonic', name:'Semi-Carbonic', icon:'🫧',
+    description:'Whole-fruit fermentation in CO₂-rich environment before pressing. Produces bright, fruity, low-tannin wines.',
+    so2_use:false, timeline_days:{ preparation:3, primary:{min:5,max:10}, secondary:{min:21,max:45}, clarification:{min:14,max:21}, aging:{min:30,max:90} },
+    notes:'Inspired by Beaujolais. Works best with whole intact fruit. Excellent for cherry.',
+    recommended_for:['sweet_cherry','sour_cherry','plum'] },
+];
+
+var YEAST_LIBRARY = [
+  { id:'71b', name:'Lalvin 71B', brand:'Lalvin', type:'commercial',
+    temp_range:'59–86°F', alcohol_tolerance:'14%',
+    character:'Fruity, aromatic, partially reduces malic acid (20–40%)',
+    best_for:['sweet_cherry','sour_cherry','raspberry','peach','plum'],
+    profile:'Produces fruity, smooth wines with reduced tartness. Enhances red fruit and floral notes.',
+    notes:'Top choice for fruit wines. Reduces harsh malic acid without full MLF.' },
+
+  { id:'ec1118', name:'Lalvin EC-1118', brand:'Lalvin', type:'commercial',
+    temp_range:'50–86°F', alcohol_tolerance:'18%',
+    character:'Neutral, clean, very vigorous',
+    best_for:['concord_grape','elderberry','high-sugar musts','stuck fermentation rescue'],
+    profile:'Workhorse champagne yeast. Ferments completely dry. Very competitive — suppresses wild yeasts.',
+    notes:'Use when you need reliable fermentation to dryness. Not ideal for delicate aromatics.' },
+
+  { id:'rc212', name:'Lalvin RC212', brand:'Lalvin', type:'commercial',
+    temp_range:'60–86°F', alcohol_tolerance:'14%',
+    character:'Spicy, structured, enhances color extraction',
+    best_for:['concord_grape','blackberry','elderberry','plum'],
+    profile:'Burgundy-style yeast. Preserves anthocyanins for deep color. Adds spice and structure.',
+    notes:'Excellent for full-bodied, tannic fruit wines. Needs adequate nutrients.' },
+
+  { id:'cote_des_blancs', name:'Red Star Côte des Blancs', brand:'Red Star', type:'commercial',
+    temp_range:'50–86°F', alcohol_tolerance:'13%',
+    character:'Fruity, low-foaming, emphasizes delicate aromatics',
+    best_for:['peach','raspberry','apple','elderberry'],
+    profile:'Slow, steady fermentation preserving delicate fruit esters. Slightly sweet finish.',
+    notes:'Best used below 65°F for maximum aroma retention. May not fully ferment high-sugar musts.' },
+
+  { id:'premier_classique', name:'Red Star Premier Classique', brand:'Red Star', type:'commercial',
+    temp_range:'59–86°F', alcohol_tolerance:'13%',
+    character:'Clean, reliable, versatile',
+    best_for:['sweet_cherry','blueberry','apple','concord_grape'],
+    profile:'All-purpose wine yeast. Reliable fermentation with clean flavor profile.',
+    notes:'Good backup yeast. Works across most fruit types.' },
+
+  { id:'d47', name:'Lalvin D47', brand:'Lalvin', type:'commercial',
+    temp_range:'50–65°F', alcohol_tolerance:'14%',
+    character:'Floral, spicy, complex aromatics',
+    best_for:['apple','peach','elderberry'],
+    profile:'Produces floral wines with honeyed notes. Must ferment cool — above 65°F produces off-flavors.',
+    notes:'Cold-fermentation specialist. Excellent for aromatic styles.' },
+
+  { id:'k1v1116', name:'Lalvin K1V-1116', brand:'Lalvin', type:'commercial',
+    temp_range:'50–95°F', alcohol_tolerance:'18%',
+    character:'Clean, fruity, enhances varietal character',
+    best_for:['raspberry','blackberry','blueberry','sour_cherry'],
+    profile:'Montpellier strain — fresh, fruity wines with excellent esters. Very temperature tolerant.',
+    notes:'Great for berry wines. Produces fresh, clean fruit character.' },
+
+  { id:'wild_native', name:'Wild / Native Yeast', brand:'Ambient', type:'wild',
+    temp_range:'60–80°F', alcohol_tolerance:'variable (8–14%)',
+    character:'Complex, unpredictable, terroir-driven',
+    best_for:['concord_grape','apple','elderberry'],
+    profile:'Uses yeasts naturally present on fruit skins and in the cellar. Unique, site-specific flavors.',
+    notes:'Higher risk — possible off-flavors. Do not use SO₂ before fermentation. Monitor closely.' },
+];
+
+var RECIPE_TEMPLATES = {
+  stone_fruit: {
+    name:'Stone Fruit Standard',
+    per_gallon:[
+      { name:'Fruit (crushed, destemmed)', amount:6.5, unit:'lbs' },
+      { name:'Granulated Sugar', amount:2.0, unit:'lbs' },
+      { name:'Water (to volume)', amount:0.5, unit:'gallons' },
+      { name:'Pectic Enzyme', amount:0.5, unit:'tsp' },
+      { name:'Acid Blend', amount:0.5, unit:'tsp' },
+      { name:'Yeast Nutrient', amount:1.0, unit:'tsp' },
+      { name:'Potassium Metabisulfite', amount:0.25, unit:'tsp' },
+    ],
+    target_og:1.090, default_yeast:'71b', default_fermentation:'traditional',
+    crush_method:'Hand-crush or freeze/thaw', so2_wait_hours:12,
+  },
+  berry: {
+    name:'Berry Standard',
+    per_gallon:[
+      { name:'Berries (crushed or whole)', amount:6.0, unit:'lbs' },
+      { name:'Granulated Sugar', amount:2.25, unit:'lbs' },
+      { name:'Water (to volume)', amount:0.6, unit:'gallons' },
+      { name:'Pectic Enzyme', amount:0.75, unit:'tsp' },
+      { name:'Acid Blend', amount:0.25, unit:'tsp' },
+      { name:'Yeast Nutrient', amount:1.0, unit:'tsp' },
+      { name:'Potassium Metabisulfite', amount:0.25, unit:'tsp' },
+    ],
+    target_og:1.090, default_yeast:'k1v1116', default_fermentation:'traditional',
+    crush_method:'Freeze then thaw, or gentle crush', so2_wait_hours:12,
+  },
+  grape: {
+    name:'Grape / Labrusca',
+    per_gallon:[
+      { name:'Grapes (crushed, stems removed)', amount:8.0, unit:'lbs' },
+      { name:'Granulated Sugar', amount:1.5, unit:'lbs' },
+      { name:'Water (to volume)', amount:0.25, unit:'gallons' },
+      { name:'Pectic Enzyme', amount:0.5, unit:'tsp' },
+      { name:'Yeast Nutrient', amount:1.0, unit:'tsp' },
+      { name:'Potassium Metabisulfite', amount:0.25, unit:'tsp' },
+    ],
+    target_og:1.085, default_yeast:'rc212', default_fermentation:'traditional',
+    crush_method:'Crush and destem', so2_wait_hours:12,
+  },
+  apple: {
+    name:'Apple / Cider-Wine',
+    per_gallon:[
+      { name:'Fresh Apple Juice (pressed)', amount:1.0, unit:'gallons' },
+      { name:'Granulated Sugar', amount:1.0, unit:'lbs' },
+      { name:'Yeast Nutrient', amount:0.5, unit:'tsp' },
+      { name:'Potassium Metabisulfite', amount:0.25, unit:'tsp' },
+      { name:'Pectic Enzyme', amount:0.5, unit:'tsp' },
+    ],
+    target_og:1.080, default_yeast:'d47', default_fermentation:'cold',
+    crush_method:'Press whole fruit for juice', so2_wait_hours:12,
+  },
+};
+
+// ─── Library Helpers ──────────────────────────────────────────────────
+function getFruitById(id) { return FRUIT_LIBRARY.find(f => f.id === id) || null; }
+function getYeastById(id) { return YEAST_LIBRARY.find(y => y.id === id) || null; }
+function getFermTypeById(id) { return FERMENTATION_TYPES.find(t => t.id === id) || null; }
+function getRecipeTemplate(id) { return RECIPE_TEMPLATES[id] || null; }
+
+function scaleRecipe(templateId, gallons) {
+  const t = getRecipeTemplate(templateId);
+  if (!t) return [];
+  return t.per_gallon.map(ing => ({
+    ...ing,
+    amount: parseFloat((ing.amount * gallons).toFixed(2))
+  }));
+}
+
+function buildBatchType(fruitId, fermTypeId) {
+  const fruit = getFruitById(fruitId);
+  const ferm  = getFermTypeById(fermTypeId);
+  if (!fruit || !ferm) return 'Custom Batch';
+  return `${fruit.name} ${ferm.name}`;
+}
+
+function projectTimeline(fermTypeId, startDate) {
+  const ferm = getFermTypeById(fermTypeId);
+  if (!ferm || !startDate) return null;
+  const d = new Date(startDate + 'T00:00:00');
+  const add = days => { const r = new Date(d); r.setDate(r.getDate() + days); return r.toISOString().slice(0,10); };
+  const tl = ferm.timeline_days;
+  const prepEnd    = tl.preparation || 2;
+  const primaryEnd = prepEnd + (tl.primary?.min || 7);
+  const secondEnd  = primaryEnd + (tl.secondary?.min || 30);
+  const clarEnd    = secondEnd + (tl.clarification?.min || 14);
+  const bottleDay  = clarEnd + 1;
+  const matureEnd  = bottleDay + (tl.aging?.min || 90);
+  return {
+    preparation:         { start: startDate,       end: add(prepEnd) },
+    primary_fermentation:{ start: add(prepEnd),    end: add(primaryEnd) },
+    secondary_fermentation:{ start: add(primaryEnd), end: add(secondEnd) },
+    clarification:       { start: add(secondEnd),  end: add(clarEnd) },
+    bottling:            { start: add(bottleDay),  end: add(bottleDay) },
+    aging:               { start: add(bottleDay),  end: add(matureEnd) },
+  };
+}
+</script>
+
+<!-- ═══ APP SCRIPT ════════════════════════════════════════════════════ -->
+<script>
+// ─── Toast ───────────────────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const tc = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  tc.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ─── Intake Wizard State ──────────────────────────────────────────────
+var wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null };
+
+function openNewBatchModal() {
+  wzState = { step: 1, fruitId: null, customFruit: '', fermId: null, yeastId: null };
+  document.getElementById('wz-year').value = new Date().getFullYear();
+  document.getElementById('wz-start-date').value = '';
+  document.getElementById('wz-gallons').value = '';
+  document.getElementById('wz-abv').value = '';
+  document.getElementById('wz-custom-fruit').value = '';
+  document.getElementById('wz-source-detail').value = '';
+  renderWzFruitGrid();
+  wizardGoto(1);
+  openModal('modal-new-batch');
+}
+
+function closeWizard() { closeModal('modal-new-batch'); }
+
+function setWzSource(s) {
+  wzState.source = s;
+  document.getElementById('src-garden').classList.toggle('active', s === 'garden');
+  document.getElementById('src-purchase').classList.toggle('active', s === 'purchase');
+}
+
+function wizardGoto(step) {
+  wzState.step = step;
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('wz-panel-' + i).style.display = i === step ? '' : 'none';
+    const prog = document.getElementById('wz-prog-' + i);
+    prog.classList.toggle('active', i === step);
+    prog.classList.toggle('done', i < step);
+  }
+  document.getElementById('wz-back-btn').style.display = step > 1 ? '' : 'none';
+  document.getElementById('wz-next-btn').style.display = step < 5 ? '' : 'none';
+  document.getElementById('wz-create-btn').style.display = step === 5 ? '' : 'none';
+  if (step === 2) renderWzFermGrid();
+  if (step === 3) renderWzYeastList();
+  if (step === 5) renderWzReview();
+}
+
+function wizardNext() {
+  const s = wzState.step;
+  if (s === 1) {
+    wzState.customFruit = document.getElementById('wz-custom-fruit').value.trim();
+    if (!wzState.fruitId && !wzState.customFruit) {
+      showToast('Please select or enter a fruit.', 'error'); return;
+    }
+  }
+  if (s === 2 && !wzState.fermId) { showToast('Please choose a fermentation type.', 'error'); return; }
+  if (s === 3 && !wzState.yeastId) { showToast('Please choose a yeast strain.', 'error'); return; }
+  if (s === 4) {
+    if (!document.getElementById('wz-gallons').value) {
+      showToast('Please enter a batch size.', 'error'); return;
+    }
+  }
+  wizardGoto(s + 1);
+}
+
+function wizardBack() { wizardGoto(wzState.step - 1); }
+
+// Fruit grid
+function renderWzFruitGrid() {
+  const grid = document.getElementById('wz-fruit-grid');
+  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🔵',
+    blackberry:'⚫', raspberry:'🍓', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🟣' };
+  grid.innerHTML = allFruits().map(f => `
+    <div class="lib-card${wzState.fruitId===f.id?' selected':''}" onclick="selectWzFruit('${f.id}')">
+      <div class="lc-icon">${icons[f.id]||'🍷'}</div>
+      <div class="lc-name">${escHtml(f.name)}</div>
+      <div class="lc-sub">${escHtml(f.season)}</div>
+    </div>`).join('');
+}
+
+function selectWzFruit(id) {
+  wzState.fruitId = id;
+  document.getElementById('wz-custom-fruit').value = '';
+  renderWzFruitGrid();
+  // auto-advance
+  setTimeout(() => wizardNext(), 180);
+}
+
+// Fermentation grid
+function renderWzFermGrid() {
+  const grid = document.getElementById('wz-ferm-grid');
+  grid.innerHTML = allFermTypes().map(f => `
+    <div class="lib-card${wzState.fermId===f.id?' selected':''}" onclick="selectWzFerm('${f.id}')">
+      <div class="lc-icon">${f.icon}</div>
+      <div class="lc-name">${escHtml(f.name)}</div>
+      <div class="lc-sub">${escHtml(f.description.slice(0,55))}…</div>
+    </div>`).join('');
+}
+
+function selectWzFerm(id) {
+  wzState.fermId = id;
+  renderWzFermGrid();
+  setTimeout(() => wizardNext(), 180);
+}
+
+// Yeast list — filtered to relevant strains first
+function renderWzYeastList() {
+  const list = document.getElementById('wz-yeast-list');
+  const fid = wzState.fruitId;
+  const sorted = [...allYeasts()].sort((a,b) => {
+    const ar = fid && a.best_for && a.best_for.includes(fid) ? 0 : 1;
+    const br = fid && b.best_for && b.best_for.includes(fid) ? 0 : 1;
+    return ar - br;
+  });
+  list.innerHTML = sorted.map(y => {
+    const rec = fid && y.best_for && y.best_for.includes(fid);
+    return `<div class="yeast-card${wzState.yeastId===y.id?' selected':''}" onclick="selectWzYeast('${y.id}')">
+      <div class="yc-name">${escHtml(y.name)}</div>
+      <div class="yc-char">${escHtml(y.character)}</div>
+      ${rec ? '<div class="yc-rec">★ Recommended for this fruit</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectWzYeast(id) {
+  wzState.yeastId = id;
+  renderWzYeastList();
+  setTimeout(() => wizardNext(), 180);
+}
+
+// Review panel
+function renderWzReview() {
+  const fruit = wzState.fruitId ? getFruitById(wzState.fruitId) : null;
+  const fruitName = fruit ? fruit.name : wzState.customFruit;
+  const ferm = wzState.fermId ? getFermTypeById(wzState.fermId) : null;
+  const yeast = wzState.yeastId ? getYeastById(wzState.yeastId) : null;
+  const gallons = parseFloat(document.getElementById('wz-gallons').value) || 1;
+  const abv = document.getElementById('wz-abv').value;
+  const startDate = document.getElementById('wz-start-date').value;
+  const year = document.getElementById('wz-year').value;
+  const batchType = buildBatchType(wzState.fruitId, wzState.fermId);
+  const templateId = fruit ? fruit.recipe_id : null;
+  const ingredients = templateId ? scaleRecipe(templateId, gallons) : [];
+  const timeline = ferm && startDate ? projectTimeline(wzState.fermId, startDate) : null;
+  const srcLabel = document.getElementById('wz-source-detail').value.trim() || '—';
+
+  const stageLabels = {
+    preparation:'Preparation', primary_fermentation:'Primary Fermentation',
+    secondary_fermentation:'Secondary Fermentation', clarification:'Clarification',
+    bottling:'Bottling', aging:'Aging'
+  };
+
+  document.getElementById('wz-review-content').innerHTML = `
+    <div class="review-section">
+      <div class="review-label">Batch Type</div>
+      <div class="review-value" style="font-family:var(--font-head);font-size:1.2rem;font-weight:700;color:var(--burgundy)">${escHtml(batchType)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px">
+      <div><div class="review-label">Fruit</div><div class="review-value">${escHtml(fruitName)}</div></div>
+      <div><div class="review-label">Fermentation</div><div class="review-value">${ferm ? escHtml(ferm.name) : '—'}</div></div>
+      <div><div class="review-label">Yeast</div><div class="review-value">${yeast ? escHtml(yeast.name) : '—'}</div></div>
+      <div><div class="review-label">Batch Size</div><div class="review-value">${gallons} gal${abv?' · '+abv+'% ABV':''}</div></div>
+      <div><div class="review-label">Source</div><div class="review-value">${escHtml(srcLabel)}</div></div>
+      <div><div class="review-label">Start Date</div><div class="review-value">${startDate || 'Not set'}</div></div>
+    </div>
+    ${ingredients.length ? `
+    <div class="review-section">
+      <h4>Ingredients (scaled to ${gallons} gal)</h4>
+      <table class="ing-table">
+        <tr><th>Ingredient</th><th>Amount</th></tr>
+        ${ingredients.map(i=>`<tr><td>${escHtml(i.name)}</td><td>${i.amount} ${escHtml(i.unit)}</td></tr>`).join('')}
+      </table>
+    </div>` : ''}
+    ${timeline ? `
+    <div class="review-section">
+      <h4>Projected Timeline</h4>
+      ${Object.entries(timeline).map(([k,v])=>`
+        <div class="timeline-row">
+          <span class="timeline-stage">${stageLabels[k]||k}</span>
+          <span class="timeline-dates">${v.start}${v.end&&v.end!==v.start?' → '+v.end:''}</span>
+        </div>`).join('')}
+    </div>` : '<p style="font-size:.85rem;color:var(--muted)">Add a start date to see the projected timeline.</p>'}
+  `;
+}
+
+// ─── Create Batch from Wizard ─────────────────────────────────────────
+function createBatchFromWizard() {
+  const fruit = wzState.fruitId ? getFruitById(wzState.fruitId) : null;
+  const fruitName = fruit ? fruit.name : wzState.customFruit;
+  const ferm = wzState.fermId ? getFermTypeById(wzState.fermId) : null;
+  const gallons = parseFloat(document.getElementById('wz-gallons').value) || null;
+  const abv = parseFloat(document.getElementById('wz-abv').value) || null;
+  const startDate = document.getElementById('wz-start-date').value || null;
+  const year = parseInt(document.getElementById('wz-year').value) || new Date().getFullYear();
+  const source = document.getElementById('wz-source-detail').value.trim();
+  const batchType = buildBatchType(wzState.fruitId, wzState.fermId);
+  const name = batchType + ' ' + year;
+
+  const batch = {
+    id: generateId(),
+    name,
+    fruit: fruitName,
+    fruit_id: wzState.fruitId,
+    ferm_type: wzState.fermId,
+    yeast_id: wzState.yeastId,
+    year,
+    gallons,
+    target_abv: abv,
+    source,
+    harvest_date: startDate,
+    blossom_date: null,
+    current_stage: 'fruit_selection',
+    completed_stages: [],
+    created: new Date().toISOString(),
+    notes: '',
+    stages: {}
+  };
+
+  const data = loadData();
+  data.batches.unshift(batch);
+  saveData(data);
+  closeWizard();
+  showToast(`"${batch.name}" created!`, 'success');
+  renderDashboard();
+}
+
+// ─── Library Browser ─────────────────────────────────────────────────
+var _libTab = 'fruits';
+
+function openLibrary() {
+  renderLibTab(_libTab);
+  openModal('modal-library');
+}
+
+function switchLibTab(tab) {
+  _libTab = tab;
+  document.querySelectorAll('.lib-tab').forEach((el,i) => {
+    el.classList.toggle('active', ['fruits','fermentation','yeast','recipes'][i] === tab);
+  });
+  document.querySelectorAll('.lib-section').forEach(el => el.classList.remove('active'));
+  document.getElementById('lib-' + tab).classList.add('active');
+  renderLibTab(tab);
+}
+
+function allFruits() {
+  const custom = (loadData().custom_fruits || []);
+  return [...FRUIT_LIBRARY, ...custom.map(c => ({...c, _custom:true}))];
+}
+function allFermTypes() {
+  const custom = (loadData().custom_ferm_types || []);
+  return [...FERMENTATION_TYPES, ...custom.map(c => ({...c, _custom:true}))];
+}
+function allYeasts() {
+  const custom = (loadData().custom_yeasts || []);
+  return [...YEAST_LIBRARY, ...custom.map(c => ({...c, _custom:true}))];
+}
+
+function renderLibTab(tab) {
+  if (tab === 'fruits')      renderLibFruits();
+  if (tab === 'fermentation') renderLibFerm();
+  if (tab === 'yeast')       renderLibYeast();
+  if (tab === 'recipes')     renderLibRecipes();
+}
+
+function renderLibFruits() {
+  const icons = { sweet_cherry:'🍒', sour_cherry:'🍒', concord_grape:'🍇', blueberry:'🔵',
+    blackberry:'⚫', raspberry:'🍓', peach:'🍑', apple:'🍏', elderberry:'🌿', plum:'🟣' };
+  const items = allFruits().map(f => `
+    <div class="lib-detail-card${f._custom?' custom-entry':''}">
+      ${f._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('fruit','${escHtml(f.id)}')" title="Remove">✕</button>` : ''}
+      <div class="ldc-tag">${icons[f.id]||'🍷'} ${f.season||''}</div>
+      <div class="ldc-name">${escHtml(f.name)}</div>
+      <div class="ldc-row"><strong>Lbs/gallon:</strong> ${f.lbs_per_gallon ? f.lbs_per_gallon.ideal || f.lbs_per_gallon : '—'}</div>
+      <div class="ldc-row"><strong>Acid:</strong> ${f.acid||'—'} &nbsp; <strong>Sugar:</strong> ${f.sugar||'—'}</div>
+      ${f.notes ? `<div class="ldc-row" style="margin-top:6px;color:var(--muted)">${escHtml(f.notes)}</div>` : ''}
+    </div>`).join('');
+  document.getElementById('lib-fruits').innerHTML = `
+    <div class="lib-detail-grid">${items}</div>
+    <button class="add-custom-toggle" onclick="toggleAddForm('lib-fruits')">+ Add custom fruit</button>
+    <div class="add-custom-form" id="lib-fruits-form" style="display:none">
+      <h4>Add Custom Fruit</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cf-name" placeholder="e.g. Gooseberry" /></div>
+        <div class="form-group"><label>Season</label><input type="text" id="cf-season" placeholder="e.g. July–Aug" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Lbs per gallon</label><input type="number" id="cf-lbs" placeholder="6" step="0.5" /></div>
+        <div class="form-group"><label>Recipe template</label>
+          <select id="cf-recipe"><option value="berry">Berry</option><option value="stone_fruit">Stone Fruit</option><option value="apple">Apple/Cider</option><option value="grape">Grape</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Notes (optional)</label><input type="text" id="cf-notes" /></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveCustomFruit()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddForm('lib-fruits')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderLibFerm() {
+  const items = allFermTypes().map(f => `
+    <div class="lib-detail-card${f._custom?' custom-entry':''}">
+      ${f._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('ferm','${escHtml(f.id)}')" title="Remove">✕</button>` : ''}
+      <div class="ldc-tag">${f.icon||'⚗️'}</div>
+      <div class="ldc-name">${escHtml(f.name)}</div>
+      <div class="ldc-row" style="color:var(--muted);margin-bottom:8px">${escHtml(f.description||'')}</div>
+      ${f.timeline_days ? `<div class="ldc-row"><strong>Primary:</strong> ${f.timeline_days.primary?.min||'?'}–${f.timeline_days.primary?.max||'?'} days</div>` : ''}
+      ${f.timeline_days ? `<div class="ldc-row"><strong>Secondary:</strong> ${f.timeline_days.secondary?.min||'?'}–${f.timeline_days.secondary?.max||'?'} days</div>` : ''}
+    </div>`).join('');
+  document.getElementById('lib-fermentation').innerHTML = `
+    <div class="lib-detail-grid">${items}</div>
+    <button class="add-custom-toggle" onclick="toggleAddForm('lib-fermentation')">+ Add custom fermentation type</button>
+    <div class="add-custom-form" id="lib-fermentation-form" style="display:none">
+      <h4>Add Custom Fermentation Type</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cft-name" placeholder="e.g. Kettle Sour" /></div>
+        <div class="form-group"><label>Icon (emoji)</label><input type="text" id="cft-icon" placeholder="🍺" maxlength="4" /></div>
+      </div>
+      <div class="form-group"><label>Description</label><input type="text" id="cft-desc" placeholder="Brief description…" /></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveCustomFermType()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddForm('lib-fermentation')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderLibYeast() {
+  const items = allYeasts().map(y => `
+    <div class="lib-detail-card${y._custom?' custom-entry':''}">
+      ${y._custom ? `<button class="ldc-delete" onclick="deleteCustomEntry('yeast','${escHtml(y.id)}')" title="Remove">✕</button>` : ''}
+      <div class="ldc-tag">${y.brand||''} · ${y.type||''}</div>
+      <div class="ldc-name">${escHtml(y.name)}</div>
+      <div class="ldc-row"><strong>Temp:</strong> ${y.temp_range||'—'}</div>
+      <div class="ldc-row"><strong>ABV tolerance:</strong> ${y.alcohol_tolerance||'—'}</div>
+      <div class="ldc-row" style="margin-top:6px;color:var(--muted)">${escHtml(y.character||y.profile||'')}</div>
+    </div>`).join('');
+  document.getElementById('lib-yeast').innerHTML = `
+    <div class="lib-detail-grid">${items}</div>
+    <button class="add-custom-toggle" onclick="toggleAddForm('lib-yeast')">+ Add custom yeast</button>
+    <div class="add-custom-form" id="lib-yeast-form" style="display:none">
+      <h4>Add Custom Yeast</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cy-name" placeholder="e.g. Lalvin 47B" /></div>
+        <div class="form-group"><label>Brand</label><input type="text" id="cy-brand" placeholder="e.g. Lalvin" /></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Temp Range</label><input type="text" id="cy-temp" placeholder="e.g. 59–86°F" /></div>
+        <div class="form-group"><label>ABV Tolerance</label><input type="text" id="cy-abv" placeholder="e.g. 14%" /></div>
+      </div>
+      <div class="form-group"><label>Character / Profile</label><input type="text" id="cy-char" placeholder="Flavor profile, best uses…" /></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn btn-primary btn-sm" onclick="saveCustomYeast()">Save</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleAddForm('lib-yeast')">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function renderLibRecipes() {
+  const items = Object.entries(RECIPE_TEMPLATES).map(([id, r]) => `
+    <div class="lib-detail-card">
+      <div class="ldc-tag">Default yeast: ${r.default_yeast||'—'}</div>
+      <div class="ldc-name">${escHtml(r.name)}</div>
+      <div class="ldc-row"><strong>Target OG:</strong> ${r.target_og}</div>
+      <div class="ldc-row"><strong>Crush:</strong> ${escHtml(r.crush_method||'—')}</div>
+      <div class="ldc-row" style="margin-top:8px"><strong>Per gallon:</strong></div>
+      ${r.per_gallon.map(i=>`<div class="ldc-row" style="padding-left:8px">· ${i.amount} ${escHtml(i.unit)} ${escHtml(i.name)}</div>`).join('')}
+    </div>`).join('');
+  document.getElementById('lib-recipes').innerHTML = `<div class="lib-detail-grid">${items}</div>`;
+}
+
+function toggleAddForm(section) {
+  const form = document.getElementById(section + '-form');
+  form.style.display = form.style.display === 'none' ? '' : 'none';
+}
+
+// ─── Save Custom Entries ──────────────────────────────────────────────
+function saveCustomFruit() {
+  const name = document.getElementById('cf-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+  const entry = {
+    id: 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+    name, season: document.getElementById('cf-season').value.trim(),
+    lbs_per_gallon: parseFloat(document.getElementById('cf-lbs').value) || 6,
+    recipe_id: document.getElementById('cf-recipe').value,
+    notes: document.getElementById('cf-notes').value.trim(),
+    tags: ['custom'], acid:'unknown', sugar:'unknown',
+  };
+  const data = loadData();
+  data.custom_fruits = data.custom_fruits || [];
+  data.custom_fruits.push(entry);
+  saveData(data);
+  showToast(`"${name}" added to library!`, 'success');
+  renderLibFruits();
+}
+
+function saveCustomFermType() {
+  const name = document.getElementById('cft-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+  const entry = {
+    id: 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+    name, icon: document.getElementById('cft-icon').value.trim() || '⚗️',
+    description: document.getElementById('cft-desc').value.trim(),
+    so2_use: false,
+    timeline_days: { preparation:2, primary:{min:7,max:14}, secondary:{min:30,max:60}, clarification:{min:14,max:30}, aging:{min:90,max:180} },
+  };
+  const data = loadData();
+  data.custom_ferm_types = data.custom_ferm_types || [];
+  data.custom_ferm_types.push(entry);
+  saveData(data);
+  showToast(`"${name}" added to library!`, 'success');
+  renderLibFerm();
+}
+
+function saveCustomYeast() {
+  const name = document.getElementById('cy-name').value.trim();
+  if (!name) { showToast('Name required', 'error'); return; }
+  const entry = {
+    id: 'custom_' + name.toLowerCase().replace(/\s+/g,'_') + '_' + Date.now(),
+    name, brand: document.getElementById('cy-brand').value.trim(),
+    type: 'custom',
+    temp_range: document.getElementById('cy-temp').value.trim(),
+    alcohol_tolerance: document.getElementById('cy-abv').value.trim(),
+    character: document.getElementById('cy-char').value.trim(),
+    best_for: [],
+  };
+  const data = loadData();
+  data.custom_yeasts = data.custom_yeasts || [];
+  data.custom_yeasts.push(entry);
+  saveData(data);
+  showToast(`"${name}" added to library!`, 'success');
+  renderLibYeast();
+}
+
+function deleteCustomEntry(type, id) {
+  if (!confirm('Remove this custom entry?')) return;
+  const data = loadData();
+  if (type === 'fruit')  data.custom_fruits     = (data.custom_fruits||[]).filter(x => x.id !== id);
+  if (type === 'ferm')   data.custom_ferm_types  = (data.custom_ferm_types||[]).filter(x => x.id !== id);
+  if (type === 'yeast')  data.custom_yeasts      = (data.custom_yeasts||[]).filter(x => x.id !== id);
+  saveData(data);
+  showToast('Entry removed.', 'success');
+  renderLibTab(_libTab);
+}
+
+// ─── Delete Batch ────────────────────────────────────────────────────
+function deleteBatch(id, name, evt) {
+  evt.stopPropagation();
+  if (!confirm(`Delete batch "${name}"? This cannot be undone.`)) return;
+  const data = loadData();
+  data.batches = data.batches.filter(b => b.id !== id);
+  saveData(data);
+  showToast(`"${name}" deleted.`);
+  renderDashboard();
+}
+
+// ─── Render Dashboard ────────────────────────────────────────────────
+function renderDashboard() {
+  const data = loadData();
+  const batches = data.batches;
+
+  // Stats
+  const stats = {
+    total:      batches.length,
+    planning:   batches.filter(b => ['fruit_selection','methodology','recipe'].includes(b.current_stage)).length,
+    active:     batches.filter(b => ['preparation','primary_fermentation','secondary_fermentation','clarification'].includes(b.current_stage)).length,
+    finishing:  batches.filter(b => ['bottling','aging'].includes(b.current_stage) && b.completed_stages?.length < STAGES.length).length,
+    complete:   batches.filter(b => b.completed_stages?.length === STAGES.length).length,
+  };
+
+  document.getElementById('stats-bar').innerHTML = `
+    <div class="stat-card">
+      <div class="val">${stats.total}</div>
+      <div class="lbl">Total Batches</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" style="color:var(--blue)">${stats.planning}</div>
+      <div class="lbl">Planning</div>
+    </div>
+    <div class="stat-card green">
+      <div class="val">${stats.active}</div>
+      <div class="lbl">Active</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="val">${stats.finishing}</div>
+      <div class="lbl">Finishing</div>
+    </div>
+    <div class="stat-card">
+      <div class="val" style="color:var(--green)">${stats.complete}</div>
+      <div class="lbl">Complete</div>
+    </div>
+  `;
+
+  // Batch cards
+  const grid = document.getElementById('batch-grid');
+  if (batches.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🍇</div>
+        <p>No batches yet. Start your first batch!</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = batches.map(b => renderBatchCard(b)).join('');
+}
+
+function renderBatchCard(batch) {
+  const { current, total } = batchProgress(batch);
+  const stageInfo = getStageInfo(batch.current_stage);
+  const groupClass = batchGroupClass(batch);
+
+  // Mini pipeline dots
+  const pipeline = STAGES.map((s, i) => {
+    let cls = 'pending';
+    if (i < current) cls = 'done';
+    else if (i === current) cls = 'current';
+    return `<div class="mini-stage ${cls}" title="${s.label}"></div>`;
+  }).join('');
+
+  // Countdown for batches with harvest date
+  let countdownHtml = '';
+  if (batch.harvest_date && ['fruit_selection','methodology','recipe'].includes(batch.current_stage)) {
+    const days = daysUntil(batch.harvest_date);
+    if (days !== null) {
+      const label = days > 0 ? `Harvest in ${days} day${days !== 1 ? 's' : ''}`
+                 : days === 0 ? 'Harvest today!'
+                 : `Harvest was ${Math.abs(days)} days ago`;
+      countdownHtml = `<div class="countdown-chip">🗓 ${label}</div>`;
+    }
+  }
+
+  // Blossom note
+  let blossomHtml = '';
+  if (batch.blossom_date) {
+    blossomHtml = `<span>🌸 Blossomed ${formatDate(batch.blossom_date)}</span>`;
+  }
+
+  return `
+    <div class="batch-card" onclick="openBatch('${batch.id}')">
+      <div class="card-header">
+        <div class="batch-name">${batch.name}</div>
+        <div class="batch-meta">
+          <span>${batch.fruit}</span>
+          <span>•</span>
+          <span>${batch.year}</span>
+          ${batch.gallons ? `<span>•</span><span>${batch.gallons} gal</span>` : ''}
+          <span>•</span>
+          <span>${batch.source}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="mini-pipeline">${pipeline}</div>
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:10px">
+          Stage ${current + 1} of ${total} — ${stageInfo.icon} ${stageInfo.label}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <span class="stage-pill ${groupClass}">${stageInfo.icon} ${stageInfo.label}</span>
+          ${countdownHtml}
+        </div>
+        ${blossomHtml ? `<div style="font-size:.78rem;color:var(--muted);margin-top:8px">${blossomHtml}</div>` : ''}
+        ${batch.notes ? `<p style="font-size:.82rem;color:var(--ink-l);margin-top:10px;line-height:1.5;border-top:1px solid var(--cream-d);padding-top:8px">${batch.notes.length > 120 ? batch.notes.slice(0,120) + '…' : batch.notes}</p>` : ''}
+      </div>
+      <div class="card-footer">
+        <span style="font-size:.75rem;color:var(--muted)">Created ${formatDate(batch.created)}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteBatch('${batch.id}', '${batch.name.replace(/'/g,"\\'")}', event)">Delete</button>
+      </div>
+    </div>`;
+}
+
+// ─── View Navigation ─────────────────────────────────────────────────
+let currentBatchId = null;
+
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+}
+
+function showDashboard() {
+  currentBatchId = null;
+  showView('dashboard');
+  renderDashboard();
+}
+
+// ─── Open Batch Detail ────────────────────────────────────────────────
+function openBatch(id) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === id);
+  if (!batch) return;
+  currentBatchId = id;
+  renderDetail(batch);
+  showView('detail');
+}
+
+// ─── Render Detail ────────────────────────────────────────────────────
+function renderDetail(batch) {
+  renderDetailHero(batch);
+  renderPipeline(batch);
+  renderStageContent(batch);
+}
+
+function renderDetailHero(batch) {
+  const stageInfo = getStageInfo(batch.current_stage);
+  const groupClass = batchGroupClass(batch);
+  let countdown = '';
+  if (batch.harvest_date) {
+    const days = daysUntil(batch.harvest_date);
+    if (days !== null && days > 0) countdown = `<span>🗓 Harvest in ${days} days (${formatDate(batch.harvest_date)})</span>`;
+    else if (days === 0) countdown = `<span>🗓 Harvest day!</span>`;
+  }
+  document.getElementById('detail-hero').innerHTML = `
+    <div>
+      <h2>${batch.name}</h2>
+      <div class="meta">
+        <span>🍒 ${batch.fruit}</span>
+        <span>📅 ${batch.year}</span>
+        ${batch.gallons ? `<span>🫙 ${batch.gallons} gallons</span>` : ''}
+        <span>🏡 ${batch.source}</span>
+        ${countdown}
+      </div>
+    </div>
+    <div style="text-align:right">
+      <span class="stage-pill ${groupClass}" style="font-size:.85rem;padding:5px 14px">
+        ${stageInfo.icon} ${stageInfo.label}
+      </span>
+    </div>`;
+}
+
+function renderPipeline(batch) {
+  const currentIdx = stageIndex(batch.current_stage);
+  const html = STAGES.map((s, i) => {
+    let cls = i < currentIdx ? 'done' : i === currentIdx ? 'current' : 'pending';
+    const icon = cls === 'done' ? '✓' : s.icon;
+    const click = cls === 'done' ? `onclick="revisitStage('${s.id}')"` : '';
+    const tip = cls === 'done' ? `title="Edit ${s.label}"` : `title="${s.label}"`;
+    return `
+      <div class="pipeline-step ${cls}" ${click} ${tip}>
+        <div class="step-circle">${icon}</div>
+        <div class="step-label">${s.label}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('detail-pipeline').innerHTML = html;
+}
+
+function renderStageContent(batch) {
+  const stage = batch.current_stage;
+  const el = document.getElementById('detail-stage-content');
+  switch (stage) {
+    case 'fruit_selection':        el.innerHTML = renderFruitSelectionStage(batch); break;
+    case 'methodology':            el.innerHTML = renderMethodologyStage(batch);    break;
+    case 'recipe':                 el.innerHTML = renderRecipeStage(batch);         break;
+    case 'preparation':            el.innerHTML = renderPreparationStage(batch);    break;
+    case 'primary_fermentation':   el.innerHTML = renderPrimaryFermStage(batch);    break;
+    case 'secondary_fermentation': el.innerHTML = renderSecondaryFermStage(batch);  break;
+    case 'clarification':          el.innerHTML = renderClarificationStage(batch);  break;
+    case 'bottling':               el.innerHTML = renderBottlingStage(batch);        break;
+    case 'aging':                  el.innerHTML = renderAgingStage(batch);           break;
+    default:
+      el.innerHTML = `<div class="stage-card">
+        <div class="stage-card-header"><h3>${getStageInfo(stage).icon} ${getStageInfo(stage).label}</h3></div>
+        <div class="stage-card-body" style="color:var(--muted);padding:32px;text-align:center">
+          This stage form is coming in a future sprint. Check back soon!
+        </div>
+      </div>`;
+  }
+  // Render completed stages below current
+  const currentIdx = stageIndex(batch.current_stage);
+  let completedHtml = '';
+  STAGES.forEach((s, i) => {
+    if (i >= currentIdx) return;
+    const data = batch.stages[s.id] || {};
+    completedHtml += renderCompletedStageSummary(s, data, batch);
+  });
+  el.innerHTML += completedHtml;
+}
+
+// ─── Fruit Selection Stage ────────────────────────────────────────────
+function renderFruitSelectionStage(batch) {
+  const d = batch.stages.fruit_selection || {};
+  const isCompleted = batch.completed_stages.includes('fruit_selection');
+  const vals = {
+    variety:       d.variety      || batch.fruit || '',
+    quantity:      d.quantity     || d.act_quantity || d.est_quantity || '',
+    blossom_date:  d.blossom_date || batch.blossom_date || '',
+    act_harvest:   d.act_harvest  || '',
+    brix:          d.brix          || '',
+    ph:            d.ph            || '',
+    quality:       d.quality       || '',
+    notes:         d.notes         || batch.notes || '',
+  };
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🍒 Fruit Selection &amp; Harvest</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ This stage is complete. Edit fields and save to update.</div>` : ''}
+        <div class="info-box cherry">
+          🌸 Your sweet cherry trees blossomed on <strong>${formatDate(vals.blossom_date) !== '—' ? formatDate(vals.blossom_date) : 'April 11, 2026'}</strong>.
+          Sweet cherries typically ripen 50–70 days after full bloom.
+          Estimated harvest window: <strong>early to late June 2026</strong>.
+        </div>
+
+        <div class="section-title">Fruit Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Variety</label>
+            <input type="text" id="fs-variety" value="${escHtml(vals.variety)}" placeholder="e.g. Bing, Rainier, Sweet Cherry" />
+          </div>
+          <div class="form-group">
+            <label>Fruit Quantity (lbs)</label>
+            <input type="number" id="fs-quantity" value="${vals.quantity || vals.act_quantity || vals.est_quantity}" placeholder="e.g. 20" step="0.5" min="0" />
+          </div>
+        </div>
+
+        <div class="section-title">Dates</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Blossom Date</label>
+            <input type="date" id="fs-blossom" value="${vals.blossom_date}" />
+          </div>
+          <div class="form-group">
+            <label>Actual Harvest Date</label>
+            <input type="date" id="fs-act-harvest" value="${vals.act_harvest}" />
+            <p class="form-hint">Fill in when you pick.</p>
+          </div>
+        </div>
+
+        <div class="section-title">At Harvest — Quality Readings</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Brix (sugar %)</label>
+            <input type="number" id="fs-brix" value="${vals.brix}" placeholder="e.g. 18–22 for ripe cherries" step="0.1" min="0" />
+            <p class="form-hint">Refractometer reading at harvest</p>
+          </div>
+          <div class="form-group">
+            <label>pH</label>
+            <input type="number" id="fs-ph" value="${vals.ph}" placeholder="e.g. 3.3–3.8" step="0.01" min="0" max="14" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Quality &amp; Condition Notes</label>
+          <input type="text" id="fs-quality" value="${escHtml(vals.quality)}" placeholder="e.g. Deep red, firm, very ripe, no mold" />
+        </div>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="fs-notes" placeholder="Any additional notes about fruit selection, tree condition, weather, etc.">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Save your progress at any time. Mark complete to advance.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveFruitSelection()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeFruitSelection()">Mark Complete &amp; Next Stage &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveFruitSelection()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveFruitSelection(advance) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  batch.stages.fruit_selection = {
+    variety:      document.getElementById('fs-variety').value.trim(),
+    quantity:     document.getElementById('fs-quantity').value,
+    blossom_date: document.getElementById('fs-blossom').value,
+    act_harvest:  document.getElementById('fs-act-harvest').value,
+    brix:         document.getElementById('fs-brix').value,
+    ph:           document.getElementById('fs-ph').value,
+    quality:      document.getElementById('fs-quality').value.trim(),
+    notes:        document.getElementById('fs-notes').value.trim(),
+    saved_at:     new Date().toISOString(),
+  };
+  // Sync top-level fields
+  const fs = batch.stages.fruit_selection;
+  if (fs.variety)      batch.fruit        = fs.variety;
+  if (fs.blossom_date) batch.blossom_date = fs.blossom_date;
+  if (fs.act_harvest)  batch.harvest_date = fs.act_harvest;
+
+  if (advance) {
+    if (!batch.completed_stages.includes('fruit_selection'))
+      batch.completed_stages.push('fruit_selection');
+    batch.current_stage = 'methodology';
+  }
+  saveData(data);
+  showToast(advance ? 'Stage complete! Moving to Methodology.' : 'Fruit Selection saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeFruitSelection() { saveFruitSelection(true); }
+
+// ─── Methodology Stage ────────────────────────────────────────────────
+function renderMethodologyStage(batch) {
+  const d = batch.stages.methodology || {};
+  const isCompleted = batch.completed_stages.includes('methodology');
+  const vals = {
+    style:      d.style      || 'Fruit Wine',
+    sweetness:  d.sweetness  || 'Semi-Sweet',
+    target_abv: d.target_abv || '12',
+    yeast:      d.yeast      || 'Lalvin 71B',
+    so2:        d.so2        || 'Standard (1 Campden tablet per gallon)',
+    approach:   d.approach   || 'Traditional',
+    aging_plan: d.aging_plan || '6–12 months in bottle',
+    notes:      d.notes      || '',
+  };
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>📋 Methodology</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ This stage is complete. Edit and save to update.</div>` : ''}
+        <div class="info-box">
+          💡 <strong>Cherry wine tips:</strong> Lalvin 71B preserves fruity aromatics and softens malic acid — ideal for a fresh, fruit-forward cherry wine.
+          EC-1118 is more aggressive and neutral. For a semi-sweet style, aim for OG ~1.090 and stop fermentation around 1.010–1.020, or ferment dry and back-sweeten before bottling.
+        </div>
+
+        <div class="section-title">Wine Profile</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Wine Style</label>
+            <select id="meth-style">
+              ${['Fruit Wine','Country Wine','Sparkling','Rosé Style','Fortified','Other']
+                .map(o => `<option${o === vals.style ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Target Sweetness</label>
+            <select id="meth-sweetness">
+              ${['Bone Dry','Dry','Off-Dry','Semi-Sweet','Sweet','Dessert']
+                .map(o => `<option${o === vals.sweetness ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Target ABV (%)</label>
+            <input type="number" id="meth-abv" value="${vals.target_abv}" placeholder="12" step="0.5" min="5" max="22" />
+          </div>
+          <div class="form-group">
+            <label>Fermentation Approach</label>
+            <select id="meth-approach">
+              ${['Traditional','Cold Crash','Quick (2-week)','Wild / Spontaneous','Other']
+                .map(o => `<option${o === vals.approach ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">Yeast &amp; Chemistry</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Yeast Strain</label>
+            <select id="meth-yeast">
+              ${['Lalvin 71B','Lalvin EC-1118','Lalvin RC212','Red Star Premier Classique','Red Star Côte des Blancs','Other']
+                .map(o => `<option${o === vals.yeast ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+            <p class="form-hint">71B is recommended for cherry — preserves fruit esters</p>
+          </div>
+          <div class="form-group">
+            <label>SO₂ Management</label>
+            <select id="meth-so2">
+              ${['Standard (1 Campden tablet per gallon)','Low SO₂','No SO₂ (natural)','High SO₂ (extended aging)']
+                .map(o => `<option${o === vals.so2 ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">Aging Plan</div>
+        <div class="form-group">
+          <label>Aging &amp; Finishing Plan</label>
+          <select id="meth-aging">
+            ${['Drink young (within 6 months)','6–12 months in bottle','1–2 years in bottle','Oak aging (6 months)','Oak aging (1 year+)','Other']
+              .map(o => `<option${o === vals.aging_plan ? ' selected' : ''}>${o}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="meth-notes" placeholder="Any specific decisions, inspirations, or goals for this batch...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Save your methodology. Mark complete to advance to Recipe.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveMethodology()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeMethodology()">Mark Complete &amp; Next Stage &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveMethodology()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveMethodology(advance) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  batch.stages.methodology = {
+    style:      document.getElementById('meth-style').value,
+    sweetness:  document.getElementById('meth-sweetness').value,
+    target_abv: document.getElementById('meth-abv').value,
+    approach:   document.getElementById('meth-approach').value,
+    yeast:      document.getElementById('meth-yeast').value,
+    so2:        document.getElementById('meth-so2').value,
+    aging_plan: document.getElementById('meth-aging').value,
+    notes:      document.getElementById('meth-notes').value.trim(),
+    saved_at:   new Date().toISOString(),
+  };
+  if (advance) {
+    if (!batch.completed_stages.includes('methodology'))
+      batch.completed_stages.push('methodology');
+    batch.current_stage = 'recipe';
+  }
+  saveData(data);
+  showToast(advance ? 'Methodology complete! Moving to Recipe.' : 'Methodology saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeMethodology() { saveMethodology(true); }
+
+// ─── Recipe Stage ─────────────────────────────────────────────────────
+function renderRecipeStage(batch) {
+  const d = batch.stages.recipe || {};
+  const isCompleted = batch.completed_stages.includes('recipe');
+  const meth = batch.stages.methodology || {};
+  const gallons = batch.gallons || 1;
+
+  // Default cherry wine recipe (scales with batch size)
+  const defaultIngredients = [
+    { name: 'Sweet Cherries',           amount: (6.5 * gallons).toFixed(1), unit: 'lbs' },
+    { name: 'Granulated Sugar',         amount: (2.0 * gallons).toFixed(1), unit: 'lbs' },
+    { name: 'Water',                    amount: (0.6 * gallons).toFixed(2), unit: 'gallons' },
+    { name: 'Pectic Enzyme',            amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Acid Blend',               amount: (0.5 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Yeast Nutrient',           amount: (1.0 * gallons).toFixed(1), unit: 'tsp' },
+    { name: 'Potassium Metabisulfite',  amount: (0.25 * gallons).toFixed(2), unit: 'tsp' },
+  ];
+  const ingredients = d.ingredients && d.ingredients.length ? d.ingredients : defaultIngredients;
+  const vals = {
+    batch_size:  d.batch_size  || String(gallons),
+    target_og:   d.target_og   || '1.090',
+    target_fg:   d.target_fg   || '1.010',
+    notes:       d.notes       || '',
+  };
+
+  const ingredientRows = ingredients.map((ing, i) => `
+    <tr>
+      <td><input type="text"   class="ing-name"   value="${escHtml(ing.name)}"   placeholder="Ingredient" style="width:100%;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+      <td><input type="number" class="ing-amount" value="${ing.amount}" placeholder="Amt"  step="0.01" style="width:80px;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+      <td>
+        <select class="ing-unit" style="border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem">
+          ${['lbs','oz','g','kg','gallons','quarts','liters','cups','tsp','tbsp','each','packets']
+            .map(u => `<option${u === ing.unit ? ' selected' : ''}>${u}</option>`).join('')}
+        </select>
+      </td>
+      <td><button class="btn btn-danger btn-sm" onclick="removeIngredientRow(this)" style="padding:4px 8px">✕</button></td>
+    </tr>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🧪 Recipe</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ This stage is complete. Edit and save to update.</div>` : ''}
+        <div class="info-box">
+          🍒 <strong>Cherry wine baseline (per gallon):</strong> 6–7 lbs cherries, 2 lbs sugar, top up with water.
+          For ${gallons} gallons the defaults below scale accordingly.
+          Adjust sugar to hit your target OG. Use a hydrometer to verify before pitching yeast.
+        </div>
+
+        <div class="section-title">Batch Targets</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Batch Size (gallons)</label>
+            <input type="number" id="rec-size" value="${vals.batch_size}" step="0.5" min="0.5" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Target OG (Original Gravity)</label>
+            <input type="number" id="rec-og" value="${vals.target_og}" step="0.001" min="1.000" max="1.200" placeholder="1.090" />
+            <p class="form-hint">1.090 → ~12% ABV when fermented dry</p>
+          </div>
+          <div class="form-group">
+            <label>Target FG (Final Gravity)</label>
+            <input type="number" id="rec-fg" value="${vals.target_fg}" step="0.001" min="0.990" max="1.100" placeholder="1.010" />
+            <p class="form-hint">1.000 = dry; 1.010–1.020 = semi-sweet</p>
+          </div>
+        </div>
+
+        <div class="section-title">Ingredients</div>
+        <div style="overflow-x:auto">
+          <table id="ingredient-table" style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)">
+                <th style="text-align:left;padding:4px 8px 8px">Ingredient</th>
+                <th style="text-align:left;padding:4px 8px 8px">Amount</th>
+                <th style="text-align:left;padding:4px 8px 8px">Unit</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="ingredient-rows">${ingredientRows}</tbody>
+          </table>
+        </div>
+        <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="addIngredientRow()">+ Add Ingredient</button>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="rec-notes" placeholder="Sourcing notes, substitutions, special additions...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Build your ingredient list and set gravity targets before crushing.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveRecipe()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeRecipe()">Mark Complete &amp; Next Stage &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveRecipe()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function collectIngredients() {
+  const rows = document.querySelectorAll('#ingredient-rows tr');
+  return Array.from(rows).map(row => ({
+    name:   row.querySelector('.ing-name')?.value.trim()   || '',
+    amount: row.querySelector('.ing-amount')?.value        || '',
+    unit:   row.querySelector('.ing-unit')?.value          || 'lbs',
+  })).filter(r => r.name);
+}
+
+function addIngredientRow() {
+  const tbody = document.getElementById('ingredient-rows');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text"   class="ing-name"   placeholder="Ingredient" style="width:100%;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+    <td><input type="number" class="ing-amount" placeholder="Amt" step="0.01" style="width:80px;border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem" /></td>
+    <td><select class="ing-unit" style="border:1px solid var(--cream-d);padding:6px 8px;border-radius:6px;font-family:inherit;font-size:.88rem">
+      ${['lbs','oz','g','kg','gallons','quarts','liters','cups','tsp','tbsp','each','packets']
+        .map(u => `<option>${u}</option>`).join('')}
+    </select></td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeIngredientRow(this)" style="padding:4px 8px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function removeIngredientRow(btn) { btn.closest('tr').remove(); }
+
+function saveRecipe(advance) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  batch.stages.recipe = {
+    batch_size:  document.getElementById('rec-size').value,
+    target_og:   document.getElementById('rec-og').value,
+    target_fg:   document.getElementById('rec-fg').value,
+    ingredients: collectIngredients(),
+    notes:       document.getElementById('rec-notes').value.trim(),
+    saved_at:    new Date().toISOString(),
+  };
+  if (advance) {
+    if (!batch.completed_stages.includes('recipe'))
+      batch.completed_stages.push('recipe');
+    batch.current_stage = 'preparation';
+  }
+  saveData(data);
+  showToast(advance ? 'Recipe complete! Moving to Preparation.' : 'Recipe saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeRecipe() { saveRecipe(true); }
+
+// ─── Preparation Stage ─────────────────────────────────────────────────
+function renderPreparationStage(batch) {
+  const d = batch.stages.preparation || {};
+  const isCompleted = batch.completed_stages.includes('preparation');
+  const meth = batch.stages.methodology || {};
+  const rec  = batch.stages.recipe || {};
+  const yeast = meth.yeast || 'Lalvin 71B';
+  const vals = {
+    prep_date:     d.prep_date     || '',
+    crush_method:  d.crush_method  || 'Hand-crushed / destemmed',
+    so2_added:     d.so2_added     !== undefined ? d.so2_added : true,
+    so2_amount:    d.so2_amount    || '0.25',
+    pectic_added:  d.pectic_added  !== undefined ? d.pectic_added : true,
+    pectic_wait_h: d.pectic_wait_h || '12',
+    must_volume:   d.must_volume   || '',
+    initial_sg:    d.initial_sg    || '',
+    initial_ph:    d.initial_ph    || '',
+    initial_ta:    d.initial_ta    || '',
+    must_temp:     d.must_temp     || '',
+    sugar_added:   d.sugar_added   || '',
+    water_added:   d.water_added   || '',
+    yeast_rehydrate: d.yeast_rehydrate !== undefined ? d.yeast_rehydrate : true,
+    pitch_temp:    d.pitch_temp    || '68',
+    notes:         d.notes        || '',
+  };
+
+  const checkAttr = (v) => v ? 'checked' : '';
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>⚗️ Preparation</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ This stage is complete. Edit and save to update.</div>` : ''}
+        <div class="info-box">
+          🍒 <strong>Cherry prep checklist:</strong> Wash and destem cherries → crush or freeze/thaw to break cells →
+          add Campden and pectic enzyme to must → wait 12–24 hours before pitching yeast.
+          Take initial SG reading to verify your target OG; adjust sugar if needed.
+        </div>
+
+        <div class="section-title">Crush &amp; Must Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Preparation Date</label>
+            <input type="date" id="prep-date" value="${vals.prep_date}" />
+          </div>
+          <div class="form-group">
+            <label>Crush Method</label>
+            <select id="prep-crush">
+              ${['Hand-crushed / destemmed','Freeze then thaw (cell break)','Food processor (pulse)','Cherry pitter + crush','Whole fruit (no crush)','Other']
+                .map(o => `<option${o === vals.crush_method ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Must Volume (gallons)</label>
+            <input type="number" id="prep-vol" value="${vals.must_volume}" placeholder="After crushing + water addition" step="0.1" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Must Temperature (°F)</label>
+            <input type="number" id="prep-temp" value="${vals.must_temp}" placeholder="65–72°F ideal" step="1" />
+          </div>
+        </div>
+
+        <div class="section-title">Additives</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="prep-so2" ${checkAttr(vals.so2_added)} style="width:16px;height:16px" />
+            Added SO₂ (Campden / K-Meta)
+          </label>
+          <div class="form-group" style="margin:0">
+            <input type="number" id="prep-so2-amt" value="${vals.so2_amount}" placeholder="tsp" step="0.05" min="0" style="width:100%" />
+            <p class="form-hint" style="margin:0">Amount in tsp</p>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="prep-pectic" ${checkAttr(vals.pectic_added)} style="width:16px;height:16px" />
+            Added Pectic Enzyme
+          </label>
+          <div class="form-group" style="margin:0">
+            <input type="number" id="prep-pectic-wait" value="${vals.pectic_wait_h}" placeholder="hrs" step="1" min="0" style="width:100%" />
+            <p class="form-hint" style="margin:0">Wait time (hours) before yeast</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Sugar Added (lbs)</label>
+            <input type="number" id="prep-sugar" value="${vals.sugar_added}" placeholder="0.0" step="0.1" min="0" />
+          </div>
+          <div class="form-group">
+            <label>Water Added (gallons)</label>
+            <input type="number" id="prep-water" value="${vals.water_added}" placeholder="0.0" step="0.1" min="0" />
+          </div>
+        </div>
+
+        <div class="section-title">Initial Readings</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Initial SG (OG)</label>
+            <input type="number" id="prep-sg" value="${vals.initial_sg}" placeholder="e.g. 1.090" step="0.001" />
+            <p class="form-hint">Target: ${rec.target_og || '1.090'}</p>
+          </div>
+          <div class="form-group">
+            <label>Initial pH</label>
+            <input type="number" id="prep-ph" value="${vals.initial_ph}" placeholder="3.3–3.8 ideal" step="0.01" min="0" max="14" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Titratable Acidity (g/L)</label>
+            <input type="number" id="prep-ta" value="${vals.initial_ta}" placeholder="6–8 g/L for fruit wine" step="0.1" min="0" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <div class="section-title">Yeast Pitch</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Yeast Strain</label>
+            <input type="text" id="prep-yeast-display" value="${escHtml(yeast)}" readonly
+              style="background:var(--cream-d);color:var(--ink-l)" />
+            <p class="form-hint">Set in Methodology stage</p>
+          </div>
+          <div class="form-group">
+            <label>Pitch Temperature (°F)</label>
+            <input type="number" id="prep-pitch-temp" value="${vals.pitch_temp}" placeholder="68" step="1" />
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:14px">
+          <input type="checkbox" id="prep-rehydrate" ${checkAttr(vals.yeast_rehydrate)} style="width:16px;height:16px" />
+          Rehydrated yeast in 104°F water before pitching
+        </label>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="prep-notes" placeholder="Condition of fruit, any adjustments made, observations...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Complete preparation and confirm readings before starting fermentation.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="savePreparation()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completePreparation()">Pitch Yeast &amp; Start Fermentation &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="savePreparation()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function savePreparation(advance) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  batch.stages.preparation = {
+    prep_date:      document.getElementById('prep-date').value,
+    crush_method:   document.getElementById('prep-crush').value,
+    so2_added:      document.getElementById('prep-so2').checked,
+    so2_amount:     document.getElementById('prep-so2-amt').value,
+    pectic_added:   document.getElementById('prep-pectic').checked,
+    pectic_wait_h:  document.getElementById('prep-pectic-wait').value,
+    must_volume:    document.getElementById('prep-vol').value,
+    must_temp:      document.getElementById('prep-temp').value,
+    sugar_added:    document.getElementById('prep-sugar').value,
+    water_added:    document.getElementById('prep-water').value,
+    initial_sg:     document.getElementById('prep-sg').value,
+    initial_ph:     document.getElementById('prep-ph').value,
+    initial_ta:     document.getElementById('prep-ta').value,
+    pitch_temp:     document.getElementById('prep-pitch-temp').value,
+    yeast_rehydrate: document.getElementById('prep-rehydrate').checked,
+    notes:          document.getElementById('prep-notes').value.trim(),
+    saved_at:       new Date().toISOString(),
+  };
+  if (advance) {
+    if (!batch.completed_stages.includes('preparation'))
+      batch.completed_stages.push('preparation');
+    batch.current_stage = 'primary_fermentation';
+  }
+  saveData(data);
+  showToast(advance ? 'Preparation complete! Primary fermentation started.' : 'Preparation saved.', 'success');
+  renderDetail(batch);
+}
+
+function completePreparation() { savePreparation(true); }
+
+// ─── Primary Fermentation Stage ──────────────────────────────────────
+function renderPrimaryFermStage(batch) {
+  const d = batch.stages.primary_fermentation || {};
+  const isCompleted = batch.completed_stages.includes('primary_fermentation');
+  const prep = batch.stages.preparation || {};
+  const rec  = batch.stages.recipe || {};
+  const logs = d.logs || [];
+  const vals = {
+    start_date: d.start_date || prep.prep_date || '',
+    vessel:     d.vessel     || 'Primary bucket (food-grade)',
+    target_fg:  d.target_fg  || rec.target_fg || '1.010',
+    final_sg:   d.final_sg   || '',
+    end_date:   d.end_date   || '',
+    racking_notes: d.racking_notes || '',
+    notes:      d.notes      || '',
+  };
+
+  // Estimated ABV from OG/FG
+  let abvHint = '';
+  const og = parseFloat(prep.initial_sg);
+  const fg = parseFloat(vals.final_sg);
+  if (og && fg) {
+    const abv = ((og - fg) * 131.25).toFixed(1);
+    abvHint = `Estimated ABV: <strong>${abv}%</strong>`;
+  }
+
+  const logRows = logs.map((l, i) => `
+    <tr style="font-size:.85rem">
+      <td style="padding:6px 8px">${escHtml(l.date)}</td>
+      <td style="padding:6px 8px;font-weight:bold">${escHtml(l.sg)}</td>
+      <td style="padding:6px 8px">${escHtml(l.temp)}${l.temp ? '°F' : ''}</td>
+      <td style="padding:6px 8px;color:var(--muted)">${escHtml(l.notes)}</td>
+      <td style="padding:6px 4px">
+        <button class="btn btn-danger btn-sm" onclick="deleteFermLog('primary_fermentation',${i})" style="padding:3px 7px">✕</button>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🫧 Primary Fermentation</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Stage complete. You can still add log entries and edit notes.</div>` : ''}
+        <div class="info-box">
+          🫧 <strong>Primary ferm tips for cherry:</strong> Punch down the cap 1–2× daily to keep fruit submerged.
+          Expect vigorous activity 24–72 hours after pitching. Primary typically lasts 7–14 days.
+          Rack to secondary when SG reaches <strong>1.020–1.030</strong> and activity slows.
+        </div>
+
+        <div class="section-title">Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="pf-start" value="${vals.start_date}" />
+          </div>
+          <div class="form-group">
+            <label>Fermentation Vessel</label>
+            <select id="pf-vessel">
+              ${['Primary bucket (food-grade)','Glass carboy','Plastic carboy','Ceramic crock','Stainless pot','Other']
+                .map(o => `<option${o === vals.vessel ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Target FG</label>
+            <input type="number" id="pf-target-fg" value="${vals.target_fg}" placeholder="1.010" step="0.001" />
+            <p class="form-hint">Rack to secondary around 1.020–1.030</p>
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <div class="section-title">Daily / Weekly Log</div>
+        <div style="overflow-x:auto;margin-bottom:12px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:2px solid var(--cream-d)">
+                <th style="text-align:left;padding:4px 8px">Date</th>
+                <th style="text-align:left;padding:4px 8px">SG</th>
+                <th style="text-align:left;padding:4px 8px">Temp (°F)</th>
+                <th style="text-align:left;padding:4px 8px">Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pf-log-rows">${logRows || '<tr><td colspan="5" style="padding:14px 8px;color:var(--muted);font-size:.85rem">No log entries yet. Add your first reading below.</td></tr>'}</tbody>
+          </table>
+        </div>
+
+        <!-- Add log entry inline -->
+        <div style="background:var(--cream-d);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">Add Log Entry</div>
+          <div style="display:grid;grid-template-columns:1fr 90px 90px 1fr auto;gap:8px;align-items:end">
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Date</label>
+              <input type="date" id="pf-log-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">SG</label>
+              <input type="number" id="pf-log-sg" placeholder="1.045" step="0.001" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Temp °F</label>
+              <input type="number" id="pf-log-temp" placeholder="68" step="1" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Notes</label>
+              <input type="text" id="pf-log-notes" placeholder="Activity level, color, aroma..." style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="addFermLog('primary_fermentation')">+ Add</button>
+          </div>
+        </div>
+
+        <div class="section-title">Completion</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final SG (at racking)</label>
+            <input type="number" id="pf-final-sg" value="${vals.final_sg}" placeholder="e.g. 1.020" step="0.001"
+              oninput="updateAbvHint()" />
+            ${abvHint ? `<p class="form-hint" id="pf-abv-hint">${abvHint}</p>` : `<p class="form-hint" id="pf-abv-hint">Enter OG + FG to estimate ABV</p>`}
+          </div>
+          <div class="form-group">
+            <label>End / Racking Date</label>
+            <input type="date" id="pf-end-date" value="${vals.end_date}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="pf-notes" placeholder="Overall observations, any issues, flavor notes at racking...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Log readings regularly. Rack to secondary when SG ≈ 1.020–1.030.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="savePrimaryFerm()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completePrimaryFerm()">Rack to Secondary &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="savePrimaryFerm()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function updateAbvHint() {
+  const batch = getData().batches.find(b => b.id === currentBatchId);
+  const prep = batch?.stages?.preparation || {};
+  const og = parseFloat(prep.initial_sg);
+  const fg = parseFloat(document.getElementById('pf-final-sg')?.value);
+  const hint = document.getElementById('pf-abv-hint');
+  if (hint && og && fg) hint.innerHTML = `Estimated ABV: <strong>${((og - fg) * 131.25).toFixed(1)}%</strong>`;
+}
+
+function addFermLog(stageId) {
+  const dateEl  = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-date'  : 'sf-log-date');
+  const sgEl    = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-sg'    : 'sf-log-sg');
+  const tempEl  = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-temp'  : 'sf-log-temp');
+  const notesEl = document.getElementById(stageId === 'primary_fermentation' ? 'pf-log-notes' : 'sf-log-notes');
+
+  const date  = dateEl?.value;
+  const sg    = sgEl?.value;
+  if (!date || !sg) { showToast('Date and SG are required for a log entry.', 'error'); return; }
+
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages[stageId]) batch.stages[stageId] = {};
+  if (!batch.stages[stageId].logs) batch.stages[stageId].logs = [];
+  batch.stages[stageId].logs.push({
+    date: date, sg: sg, temp: tempEl?.value || '', notes: notesEl?.value.trim() || '',
+    logged_at: new Date().toISOString()
+  });
+  saveData(data);
+  showToast('Log entry added.', 'success');
+  renderDetail(batch);
+}
+
+function deleteFermLog(stageId, index) {
+  if (!confirm('Remove this log entry?')) return;
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch?.stages[stageId]?.logs) return;
+  batch.stages[stageId].logs.splice(index, 1);
+  saveData(data);
+  renderDetail(batch);
+}
+
+function savePrimaryFerm(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages) batch.stages = {};
+  if (!batch.stages.primary_fermentation) batch.stages.primary_fermentation = {};
+  const pf = batch.stages.primary_fermentation;
+  pf.start_date  = document.getElementById('pf-start').value;
+  pf.vessel      = document.getElementById('pf-vessel').value;
+  pf.target_fg   = document.getElementById('pf-target-fg').value;
+  pf.final_sg    = document.getElementById('pf-final-sg').value;
+  pf.end_date    = document.getElementById('pf-end-date').value;
+  pf.notes       = document.getElementById('pf-notes').value.trim();
+  pf.saved_at    = new Date().toISOString();
+  if (!pf.logs) pf.logs = [];
+  if (advance) {
+    if (!batch.completed_stages.includes('primary_fermentation'))
+      batch.completed_stages.push('primary_fermentation');
+    batch.current_stage = 'secondary_fermentation';
+  }
+  saveData(data);
+  showToast(advance ? 'Racked to secondary!' : 'Primary fermentation saved.', 'success');
+  renderDetail(batch);
+}
+
+function completePrimaryFerm() {
+  const fg = document.getElementById('pf-final-sg')?.value;
+  if (!fg) { showToast('Please enter a final SG reading before racking.', 'error'); return; }
+  savePrimaryFerm(true);
+}
+
+// ─── Secondary Fermentation Stage ────────────────────────────────────
+function renderSecondaryFermStage(batch) {
+  const d = batch.stages.secondary_fermentation || {};
+  const isCompleted = batch.completed_stages.includes('secondary_fermentation');
+  const pf = batch.stages.primary_fermentation || {};
+  const logs = d.logs || [];
+  const vals = {
+    rack_date:   d.rack_date   || pf.end_date || '',
+    vessel:      d.vessel      || 'Glass carboy (airlocked)',
+    so2_at_rack: d.so2_at_rack !== undefined ? d.so2_at_rack : true,
+    fining:      d.fining      || [],
+    final_sg:    d.final_sg    || '',
+    end_date:    d.end_date    || '',
+    notes:       d.notes       || '',
+  };
+
+  const logRows = logs.map((l, i) => `
+    <tr style="font-size:.85rem">
+      <td style="padding:6px 8px">${escHtml(l.date)}</td>
+      <td style="padding:6px 8px;font-weight:bold">${escHtml(l.sg)}</td>
+      <td style="padding:6px 8px">${escHtml(l.temp)}${l.temp ? '°F' : ''}</td>
+      <td style="padding:6px 8px;color:var(--muted)">${escHtml(l.notes)}</td>
+      <td style="padding:6px 4px">
+        <button class="btn btn-danger btn-sm" onclick="deleteFermLog('secondary_fermentation',${i})" style="padding:3px 7px">✕</button>
+      </td>
+    </tr>`).join('');
+
+  // ABV from prep OG + secondary final SG
+  let abvNote = '';
+  const prep = batch.stages.preparation || {};
+  const og = parseFloat(prep.initial_sg);
+  const sfg = parseFloat(vals.final_sg);
+  if (og && sfg) abvNote = `<span style="color:var(--green);font-weight:bold">Est. ABV: ${((og - sfg) * 131.25).toFixed(1)}%</span>`;
+
+  const FININGS = ['Bentonite','Sparkolloid','Chitosan','Kieselsol','Super-Kleer','Egg White Fining','Gelatin','None'];
+  const finingChecks = FININGS.map(f => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:.88rem;cursor:pointer">
+      <input type="checkbox" class="fining-check" value="${f}" ${(vals.fining||[]).includes(f) ? 'checked' : ''} style="width:15px;height:15px" />
+      ${f}
+    </label>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🔬 Secondary Fermentation</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Stage complete. You can still add log entries.</div>` : ''}
+        <div class="info-box">
+          🔬 <strong>Secondary tips:</strong> Rack off the gross lees into a clean carboy with an airlock.
+          Top up to minimize headspace. Check SG weekly. Secondary lasts 4–8 weeks.
+          Wine is ready to clarify/bottle when SG is stable over 2 consecutive readings and the wine is clearing.
+        </div>
+
+        <div class="section-title">Racking Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Racking Date</label>
+            <input type="date" id="sf-rack-date" value="${vals.rack_date}" />
+          </div>
+          <div class="form-group">
+            <label>Secondary Vessel</label>
+            <select id="sf-vessel">
+              ${['Glass carboy (airlocked)','Plastic carboy','Stainless keg','Oak barrel','Other']
+                .map(o => `<option${o === vals.vessel ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:16px">
+          <input type="checkbox" id="sf-so2" ${vals.so2_at_rack ? 'checked' : ''} style="width:16px;height:16px" />
+          Added SO₂ (Campden) at racking
+        </label>
+
+        <div class="section-title">Weekly Log</div>
+        <div style="overflow-x:auto;margin-bottom:12px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:2px solid var(--cream-d)">
+                <th style="text-align:left;padding:4px 8px">Date</th>
+                <th style="text-align:left;padding:4px 8px">SG</th>
+                <th style="text-align:left;padding:4px 8px">Temp (°F)</th>
+                <th style="text-align:left;padding:4px 8px">Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${logRows || '<tr><td colspan="5" style="padding:14px 8px;color:var(--muted);font-size:.85rem">No entries yet.</td></tr>'}</tbody>
+          </table>
+        </div>
+
+        <!-- Add log entry -->
+        <div style="background:var(--cream-d);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">Add Log Entry</div>
+          <div style="display:grid;grid-template-columns:1fr 90px 90px 1fr auto;gap:8px;align-items:end">
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Date</label>
+              <input type="date" id="sf-log-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">SG</label>
+              <input type="number" id="sf-log-sg" placeholder="1.010" step="0.001" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Temp °F</label>
+              <input type="number" id="sf-log-temp" placeholder="65" step="1" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div>
+              <label style="font-size:.75rem;color:var(--ink-l);display:block;margin-bottom:3px">Notes</label>
+              <input type="text" id="sf-log-notes" placeholder="Clarity, activity, color..." style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="addFermLog('secondary_fermentation')">+ Add</button>
+          </div>
+        </div>
+
+        <div class="section-title">Fining Agents Used</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px">
+          ${finingChecks}
+        </div>
+
+        <div class="section-title">Completion</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final / Stable SG</label>
+            <input type="number" id="sf-final-sg" value="${vals.final_sg}" placeholder="e.g. 0.998–1.005" step="0.001" />
+            ${abvNote ? `<p class="form-hint">${abvNote}</p>` : '<p class="form-hint">Final ABV will calculate when OG + FG are set</p>'}
+          </div>
+          <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="sf-end-date" value="${vals.end_date}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="sf-notes" placeholder="Clarity progress, flavour development, racking details...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Stable SG over 2+ weeks = ready to clarify or bottle.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveSecondaryFerm()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeSecondaryFerm()">Move to Clarification &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveSecondaryFerm()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveSecondaryFerm(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.secondary_fermentation) batch.stages.secondary_fermentation = {};
+  const sf = batch.stages.secondary_fermentation;
+  sf.rack_date   = document.getElementById('sf-rack-date').value;
+  sf.vessel      = document.getElementById('sf-vessel').value;
+  sf.so2_at_rack = document.getElementById('sf-so2').checked;
+  sf.fining      = Array.from(document.querySelectorAll('.fining-check:checked')).map(el => el.value);
+  sf.final_sg    = document.getElementById('sf-final-sg').value;
+  sf.end_date    = document.getElementById('sf-end-date').value;
+  sf.notes       = document.getElementById('sf-notes').value.trim();
+  sf.saved_at    = new Date().toISOString();
+  if (!sf.logs) sf.logs = [];
+  if (advance) {
+    if (!batch.completed_stages.includes('secondary_fermentation'))
+      batch.completed_stages.push('secondary_fermentation');
+    batch.current_stage = 'clarification';
+  }
+  saveData(data);
+  showToast(advance ? 'Moving to Clarification.' : 'Secondary fermentation saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeSecondaryFerm() {
+  const fg = document.getElementById('sf-final-sg')?.value;
+  if (!fg) { showToast('Please enter a stable final SG before moving on.', 'error'); return; }
+  saveSecondaryFerm(true);
+}
+
+// ─── Clarification Stage ──────────────────────────────────────────────
+function renderClarificationStage(batch) {
+  const d = batch.stages.clarification || {};
+  const isCompleted = batch.completed_stages.includes('clarification');
+  const vals = {
+    start_date:  d.start_date  || '',
+    method:      d.method      || 'Natural settling',
+    agents:      d.agents      || [],
+    filtered:    d.filtered    !== undefined ? d.filtered : false,
+    filter_type: d.filter_type || '',
+    so2_final:   d.so2_final   !== undefined ? d.so2_final : true,
+    so2_ppm:     d.so2_ppm     || '50',
+    clarity:     d.clarity     || '',
+    color:       d.color       || '',
+    aroma:       d.aroma       || '',
+    taste:       d.taste       || '',
+    end_date:    d.end_date    || '',
+    notes:       d.notes       || '',
+  };
+
+  const METHODS = ['Natural settling','Bentonite treatment','Cold crashing','Isinglass','Chitosan + Kieselsol','Commercial finings kit','Filter pad','Other'];
+  const CLARITY = ['Cloudy','Slightly hazy','Clear','Brilliant','Crystal clear'];
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>✨ Clarification</h3>
+        ${isCompleted ? '<span class="stage-pill stage-fermentation" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Stage complete.</div>` : ''}
+        <div class="info-box">
+          ✨ <strong>Clarification tips:</strong> Cherry wine typically clears on its own over 4–8 weeks in secondary.
+          Cold crashing (35–40°F for 1–2 weeks) speeds things up dramatically.
+          Add final SO₂ before bottling to protect against oxidation and microbial spoilage.
+        </div>
+
+        <div class="section-title">Clarification Method</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" id="cl-start" value="${vals.start_date}" />
+          </div>
+          <div class="form-group">
+            <label>Primary Method</label>
+            <select id="cl-method">
+              ${METHODS.map(o => `<option${o === vals.method ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:16px">
+          <input type="checkbox" id="cl-filtered" ${vals.filtered ? 'checked' : ''} style="width:16px;height:16px" />
+          Wine was filtered (pad filter, cartridge filter, etc.)
+        </label>
+
+        <div class="section-title">Final SO₂ Addition</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer">
+            <input type="checkbox" id="cl-so2" ${vals.so2_final ? 'checked' : ''} style="width:16px;height:16px" />
+            Added SO₂ before bottling
+          </label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:.85rem;color:var(--ink-l)">Target free SO₂ (ppm):</label>
+            <input type="number" id="cl-so2-ppm" value="${vals.so2_ppm}" style="width:70px;padding:6px 8px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" step="5" min="0" max="150" />
+          </div>
+        </div>
+
+        <div class="section-title">Wine Assessment</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Clarity</label>
+            <select id="cl-clarity">
+              <option value="">— select —</option>
+              ${CLARITY.map(o => `<option${o === vals.clarity ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Color Description</label>
+            <input type="text" id="cl-color" value="${escHtml(vals.color)}" placeholder="e.g. Deep ruby, bright cherry red" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Aroma</label>
+            <input type="text" id="cl-aroma" value="${escHtml(vals.aroma)}" placeholder="e.g. Fresh cherry, floral, light tannin" />
+          </div>
+          <div class="form-group">
+            <label>Taste</label>
+            <input type="text" id="cl-taste" value="${escHtml(vals.taste)}" placeholder="e.g. Fruity, balanced acid, semi-sweet" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ready-to-bottle Date</label>
+            <input type="date" id="cl-end" value="${vals.end_date}" />
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="cl-notes" placeholder="Settling observations, any treatments applied, final sensory notes...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Wine is ready to bottle when clear and SO₂ is adjusted.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveClarification()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeClarification()">Ready to Bottle &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveClarification()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveClarification(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.clarification) batch.stages.clarification = {};
+  const cl = batch.stages.clarification;
+  cl.start_date  = document.getElementById('cl-start').value;
+  cl.method      = document.getElementById('cl-method').value;
+  cl.filtered    = document.getElementById('cl-filtered').checked;
+  cl.so2_final   = document.getElementById('cl-so2').checked;
+  cl.so2_ppm     = document.getElementById('cl-so2-ppm').value;
+  cl.clarity     = document.getElementById('cl-clarity').value;
+  cl.color       = document.getElementById('cl-color').value.trim();
+  cl.aroma       = document.getElementById('cl-aroma').value.trim();
+  cl.taste       = document.getElementById('cl-taste').value.trim();
+  cl.end_date    = document.getElementById('cl-end').value;
+  cl.notes       = document.getElementById('cl-notes').value.trim();
+  cl.saved_at    = new Date().toISOString();
+  if (advance) {
+    if (!batch.completed_stages.includes('clarification'))
+      batch.completed_stages.push('clarification');
+    batch.current_stage = 'bottling';
+  }
+  saveData(data);
+  showToast(advance ? 'Clarification complete! Ready to bottle.' : 'Clarification saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeClarification() { saveClarification(true); }
+
+// ─── Bottling Stage ───────────────────────────────────────────────────
+function renderBottlingStage(batch) {
+  const d = batch.stages.bottling || {};
+  const isCompleted = batch.completed_stages.includes('bottling');
+  const prep = batch.stages.preparation || {};
+  const sf   = batch.stages.secondary_fermentation || {};
+  const cl   = batch.stages.clarification || {};
+  const vals = {
+    bottling_date:   d.bottling_date   || cl.end_date   || '',
+    bottle_count:    d.bottle_count    || '',
+    bottle_size:     d.bottle_size     || '750ml',
+    final_sg:        d.final_sg        || sf.final_sg   || '',
+    back_sweetened:  d.back_sweetened  !== undefined ? d.back_sweetened : false,
+    sugar_added_oz:  d.sugar_added_oz  || '',
+    sweetness_desc:  d.sweetness_desc  || '',
+    cork_type:       d.cork_type       || 'Natural cork',
+    label:           d.label           || '',
+    storage_location: d.storage_location || 'Cool, dark place',
+    notes:           d.notes           || '',
+  };
+
+  // ABV calc
+  let abvNote = '';
+  const og = parseFloat(prep.initial_sg);
+  const fg = parseFloat(vals.final_sg);
+  if (og && fg) {
+    abvNote = `<p class="form-hint" style="color:var(--green);font-weight:bold">Estimated ABV: ${((og - fg) * 131.25).toFixed(1)}%</p>`;
+  }
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🍾 Bottling</h3>
+        ${isCompleted ? '<span class="stage-pill stage-aging" style="font-size:.72rem">✓ Completed</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">✓ Bottled! Aging stage has begun.</div>` : ''}
+        <div class="info-box">
+          🍾 <strong>Bottling day tips:</strong> Sanitize everything — bottles, siphon, corks.
+          If back-sweetening, add dissolved sugar and stir gently, then wait 24 hours to check for re-fermentation.
+          Add potassium sorbate (1/2 tsp/gal) to prevent refermentation if the wine isn't bone dry.
+          Fill bottles to within 1 inch of the cork. Label and enjoy!
+        </div>
+
+        <div class="section-title">Bottling Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bottling Date</label>
+            <input type="date" id="bot-date" value="${vals.bottling_date}" />
+          </div>
+          <div class="form-group">
+            <label>Number of Bottles</label>
+            <input type="number" id="bot-count" value="${vals.bottle_count}" placeholder="e.g. 15" step="1" min="0" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Bottle Size</label>
+            <select id="bot-size">
+              ${['375ml (half bottle)','500ml','750ml (standard)','1L','1.5L (magnum)','Other']
+                .map(o => `<option${o === vals.bottle_size ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Cork / Closure Type</label>
+            <select id="bot-cork">
+              ${['Natural cork','Synthetic cork','Cork #9','Screw cap','Swing top (Grolsch)','Crown cap','Other']
+                .map(o => `<option${o === vals.cork_type ? ' selected' : ''}>${o}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">Final Gravity &amp; ABV</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Final SG at Bottling</label>
+            <input type="number" id="bot-sg" value="${vals.final_sg}" placeholder="0.995–1.010" step="0.001" />
+            ${abvNote}
+          </div>
+          <div class="form-group"></div>
+        </div>
+
+        <div class="section-title">Back-Sweetening</div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer;margin-bottom:12px">
+          <input type="checkbox" id="bot-sweet" ${vals.back_sweetened ? 'checked' : ''} style="width:16px;height:16px"
+            onchange="document.getElementById('bot-sweet-detail').style.display=this.checked?'grid':'none'" />
+          Wine was back-sweetened before bottling
+        </label>
+        <div id="bot-sweet-detail" style="display:${vals.back_sweetened ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div class="form-group" style="margin:0">
+            <label>Sugar Added (oz)</label>
+            <input type="number" id="bot-sugar-oz" value="${vals.sugar_added_oz}" placeholder="0" step="0.5" min="0" />
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Resulting Sweetness</label>
+            <input type="text" id="bot-sweetness" value="${escHtml(vals.sweetness_desc)}" placeholder="e.g. Semi-sweet, 2% RS" />
+          </div>
+        </div>
+
+        <div class="section-title">Label &amp; Storage</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Label Name / Text</label>
+            <input type="text" id="bot-label" value="${escHtml(vals.label)}" placeholder="e.g. Backyard Sweet Cherry 2026" />
+          </div>
+          <div class="form-group">
+            <label>Storage Location</label>
+            <input type="text" id="bot-storage" value="${escHtml(vals.storage_location)}" placeholder="e.g. Cellar, 55°F" />
+          </div>
+        </div>
+
+        <div class="section-title">Notes</div>
+        <div class="form-group">
+          <textarea id="bot-notes" placeholder="Anything notable about the bottling session, flavour at bottling, gifting plans...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">After bottling, let the wine rest 2–4 weeks before opening the first bottle.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveBottling()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeBottling()">🪵 Start Aging &#8594;</button>`
+            : `<button class="btn btn-gold" onclick="saveBottling()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function saveBottling(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.bottling) batch.stages.bottling = {};
+  const bot = batch.stages.bottling;
+  bot.bottling_date    = document.getElementById('bot-date').value;
+  bot.bottle_count     = document.getElementById('bot-count').value;
+  bot.bottle_size      = document.getElementById('bot-size').value;
+  bot.cork_type        = document.getElementById('bot-cork').value;
+  bot.final_sg         = document.getElementById('bot-sg').value;
+  bot.back_sweetened   = document.getElementById('bot-sweet').checked;
+  bot.sugar_added_oz   = document.getElementById('bot-sugar-oz')?.value || '';
+  bot.sweetness_desc   = document.getElementById('bot-sweetness')?.value.trim() || '';
+  bot.label            = document.getElementById('bot-label').value.trim();
+  bot.storage_location = document.getElementById('bot-storage').value.trim();
+  bot.notes            = document.getElementById('bot-notes').value.trim();
+  bot.saved_at         = new Date().toISOString();
+  if (advance) {
+    if (!batch.completed_stages.includes('bottling'))
+      batch.completed_stages.push('bottling');
+    batch.current_stage = 'aging';
+  }
+  saveData(data);
+  showToast(advance ? 'Bottled! Starting the aging stage.' : 'Bottling saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeBottling() {
+  const count = document.getElementById('bot-count')?.value;
+  if (!count) { showToast('Please enter bottle count before starting aging.', 'error'); return; }
+  saveBottling(true);
+}
+
+// ─── Aging Stage ──────────────────────────────────────────────────────
+function renderAgingStage(batch) {
+  const d = batch.stages.aging || {};
+  const isCompleted = batch.completed_stages.includes('aging');
+  const bot = batch.stages.bottling || {};
+  const tastingLogs = d.tasting_logs || [];
+  const vals = {
+    start_date:      d.start_date      || bot.bottling_date || '',
+    target_date:     d.target_date     || '',
+    storage:         d.storage         || bot.storage_location || 'Cool, dark place',
+    bottles_remaining: d.bottles_remaining !== undefined ? d.bottles_remaining : (bot.bottle_count || ''),
+    notes:           d.notes           || '',
+  };
+
+  const tastingRows = tastingLogs.map((t, i) => `
+    <div style="background:var(--cream-d);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;position:relative">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <strong style="color:var(--burgundy)">${escHtml(t.date)}</strong>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:var(--gold);font-size:1.1rem">${'★'.repeat(t.rating || 0)}${'☆'.repeat(5 - (t.rating || 0))}</span>
+          <button class="btn btn-danger btn-sm" onclick="deleteTastingLog(${i})" style="padding:3px 7px">✕</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.85rem">
+        ${t.color ? `<div><span style="color:var(--muted)">Color:</span> ${escHtml(t.color)}</div>` : ''}
+        ${t.aroma ? `<div><span style="color:var(--muted)">Aroma:</span> ${escHtml(t.aroma)}</div>` : ''}
+        ${t.taste ? `<div><span style="color:var(--muted)">Taste:</span> ${escHtml(t.taste)}</div>` : ''}
+        ${t.finish ? `<div><span style="color:var(--muted)">Finish:</span> ${escHtml(t.finish)}</div>` : ''}
+      </div>
+      ${t.notes ? `<p style="margin-top:6px;font-size:.82rem;color:var(--ink-l)">${escHtml(t.notes)}</p>` : ''}
+    </div>`).join('');
+
+  return `
+    <div class="stage-card">
+      <div class="stage-card-header">
+        <h3>🪵 Aging &amp; Tasting Notes</h3>
+        ${isCompleted ? '<span class="stage-pill stage-complete" style="font-size:.72rem">✓ Batch Complete</span>' : ''}
+      </div>
+      <div class="stage-card-body">
+        ${isCompleted ? `<div class="completed-banner">🎉 This batch is complete. All tasting notes are preserved below.</div>` : ''}
+        <div class="info-box cherry">
+          🪵 <strong>Aging cherry wine:</strong> Cherry wine is best enjoyed young to mid-term (6–18 months).
+          Try the first bottle at 2–3 months to track development. Peak drinking window is typically 6–12 months after bottling.
+          Store upright if using screw caps; on their side for corks.
+        </div>
+
+        <div class="section-title">Aging Setup</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Aging Start Date</label>
+            <input type="date" id="ag-start" value="${vals.start_date}" />
+          </div>
+          <div class="form-group">
+            <label>Target Ready-to-Drink Date</label>
+            <input type="date" id="ag-target" value="${vals.target_date}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Storage Location</label>
+            <input type="text" id="ag-storage" value="${escHtml(vals.storage)}" placeholder="e.g. Cellar at 55°F, basement rack" />
+          </div>
+          <div class="form-group">
+            <label>Bottles Remaining</label>
+            <input type="number" id="ag-bottles" value="${vals.bottles_remaining}" placeholder="${bot.bottle_count || 0}" step="1" min="0" />
+          </div>
+        </div>
+
+        <div class="section-title">Tasting Notes</div>
+        ${tastingLogs.length ? tastingRows : '<p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">No tasting notes yet. Open a bottle and record your impressions!</p>'}
+
+        <!-- Add tasting note -->
+        <div style="background:var(--cream-d);border-radius:var(--radius);padding:16px;margin-top:8px">
+          <div style="font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px">Record a Tasting</div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Date</label>
+              <input type="date" id="ag-t-date" value="${new Date().toISOString().slice(0,10)}" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Rating</label>
+              <select id="ag-t-rating" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem">
+                <option value="0">— unrated —</option>
+                <option value="1">★ (1/5)</option>
+                <option value="2">★★ (2/5)</option>
+                <option value="3">★★★ (3/5)</option>
+                <option value="4">★★★★ (4/5)</option>
+                <option value="5">★★★★★ (5/5)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Color</label>
+              <input type="text" id="ag-t-color" placeholder="e.g. Bright ruby, deep garnet" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Aroma</label>
+              <input type="text" id="ag-t-aroma" placeholder="e.g. Cherry jam, light oak, floral" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Taste</label>
+              <input type="text" id="ag-t-taste" placeholder="e.g. Fruity, balanced, light tannin" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label style="font-size:.78rem">Finish</label>
+              <input type="text" id="ag-t-finish" placeholder="e.g. Clean, medium-long, fruity" style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem" />
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label style="font-size:.78rem">Additional Notes</label>
+            <textarea id="ag-t-notes" placeholder="Overall impression, food pairings, who you shared it with..." style="width:100%;padding:7px 10px;border:2px solid var(--cream-d);border-radius:var(--radius);font-family:inherit;font-size:.88rem;min-height:56px;resize:vertical"></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addTastingLog()">+ Record Tasting</button>
+        </div>
+
+        <div class="section-title">Batch Notes</div>
+        <div class="form-group">
+          <textarea id="ag-notes" placeholder="Long-term observations, what you'd change next time...">${escHtml(vals.notes)}</textarea>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <span class="hint">Keep tasting notes as the wine evolves. Mark complete when the batch is finished.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="saveAging()">Save</button>
+          ${!isCompleted
+            ? `<button class="btn btn-primary" onclick="completeAging()">🎉 Mark Batch Complete</button>`
+            : `<button class="btn btn-gold" onclick="saveAging()">Update</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function addTastingLog() {
+  const date = document.getElementById('ag-t-date')?.value;
+  if (!date) { showToast('Please enter a tasting date.', 'error'); return; }
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.aging) batch.stages.aging = {};
+  if (!batch.stages.aging.tasting_logs) batch.stages.aging.tasting_logs = [];
+  batch.stages.aging.tasting_logs.push({
+    date:   date,
+    rating: parseInt(document.getElementById('ag-t-rating')?.value) || 0,
+    color:  document.getElementById('ag-t-color')?.value.trim()  || '',
+    aroma:  document.getElementById('ag-t-aroma')?.value.trim()  || '',
+    taste:  document.getElementById('ag-t-taste')?.value.trim()  || '',
+    finish: document.getElementById('ag-t-finish')?.value.trim() || '',
+    notes:  document.getElementById('ag-t-notes')?.value.trim()  || '',
+    logged_at: new Date().toISOString(),
+  });
+  saveData(data);
+  showToast('Tasting note recorded!', 'success');
+  renderDetail(batch);
+}
+
+function deleteTastingLog(index) {
+  if (!confirm('Remove this tasting note?')) return;
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch?.stages?.aging?.tasting_logs) return;
+  batch.stages.aging.tasting_logs.splice(index, 1);
+  saveData(data);
+  renderDetail(batch);
+}
+
+function saveAging(advance) {
+  const data  = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  if (!batch.stages.aging) batch.stages.aging = {};
+  const ag = batch.stages.aging;
+  ag.start_date         = document.getElementById('ag-start').value;
+  ag.target_date        = document.getElementById('ag-target').value;
+  ag.storage            = document.getElementById('ag-storage').value.trim();
+  ag.bottles_remaining  = document.getElementById('ag-bottles').value;
+  ag.notes              = document.getElementById('ag-notes').value.trim();
+  ag.saved_at           = new Date().toISOString();
+  if (!ag.tasting_logs) ag.tasting_logs = [];
+  if (advance) {
+    if (!batch.completed_stages.includes('aging'))
+      batch.completed_stages.push('aging');
+    batch.current_stage = 'aging'; // stay on aging, just mark complete
+  }
+  saveData(data);
+  showToast(advance ? '🎉 Batch complete! Congratulations, winemaker!' : 'Aging notes saved.', 'success');
+  renderDetail(batch);
+}
+
+function completeAging() { saveAging(true); }
+
+// ─── Completed Stage Summary ──────────────────────────────────────────
+function renderCompletedStageSummary(stageObj, data, batch) {
+  const pairs = [];
+  if (stageObj.id === 'fruit_selection') {
+    if (data.variety)   pairs.push(['Variety',  data.variety]);
+    if (data.quantity)  pairs.push(['Quantity', data.quantity + ' lbs']);
+    if (data.act_harvest) pairs.push(['Harvested', formatDate(data.act_harvest)]);
+    if (data.brix)         pairs.push(['Brix', data.brix]);
+    if (data.ph)           pairs.push(['pH', data.ph]);
+  }
+  if (stageObj.id === 'methodology') {
+    if (data.style)      pairs.push(['Style', data.style]);
+    if (data.sweetness)  pairs.push(['Target', data.sweetness]);
+    if (data.target_abv) pairs.push(['Target ABV', data.target_abv + '%']);
+    if (data.yeast)      pairs.push(['Yeast', data.yeast]);
+  }
+  if (stageObj.id === 'recipe') {
+    if (data.batch_size) pairs.push(['Batch Size', data.batch_size + ' gal']);
+    if (data.target_og)  pairs.push(['Target OG',  data.target_og]);
+    if (data.target_fg)  pairs.push(['Target FG',  data.target_fg]);
+    if (data.ingredients) pairs.push(['Ingredients', data.ingredients.length + ' items']);
+  }
+  if (stageObj.id === 'preparation') {
+    if (data.prep_date)  pairs.push(['Date',        formatDate(data.prep_date)]);
+    if (data.initial_sg) pairs.push(['OG Measured', data.initial_sg]);
+    if (data.initial_ph) pairs.push(['pH',          data.initial_ph]);
+    if (data.crush_method) pairs.push(['Crush',     data.crush_method]);
+  }
+  if (stageObj.id === 'primary_fermentation') {
+    if (data.start_date) pairs.push(['Started',   formatDate(data.start_date)]);
+    if (data.end_date)   pairs.push(['Racked',    formatDate(data.end_date)]);
+    if (data.final_sg)   pairs.push(['Final SG',  data.final_sg]);
+    if (data.logs?.length) pairs.push(['Log Entries', data.logs.length]);
+  }
+  if (stageObj.id === 'secondary_fermentation') {
+    if (data.rack_date)  pairs.push(['Racked',    formatDate(data.rack_date)]);
+    if (data.end_date)   pairs.push(['Completed', formatDate(data.end_date)]);
+    if (data.final_sg)   pairs.push(['Stable SG', data.final_sg]);
+    if (data.fining?.length) pairs.push(['Finings', data.fining.join(', ')]);
+  }
+  if (stageObj.id === 'clarification') {
+    if (data.method)    pairs.push(['Method',  data.method]);
+    if (data.clarity)   pairs.push(['Clarity', data.clarity]);
+    if (data.so2_ppm)   pairs.push(['Free SO₂', data.so2_ppm + ' ppm']);
+    if (data.end_date)  pairs.push(['Bottled', formatDate(data.end_date)]);
+  }
+  if (stageObj.id === 'bottling') {
+    if (data.bottling_date) pairs.push(['Date',     formatDate(data.bottling_date)]);
+    if (data.bottle_count)  pairs.push(['Bottles',  data.bottle_count]);
+    if (data.bottle_size)   pairs.push(['Size',     data.bottle_size]);
+    if (data.final_sg) {
+      const prep = batch?.stages?.preparation || {};
+      const og = parseFloat(prep.initial_sg);
+      const fg = parseFloat(data.final_sg);
+      if (og && fg) pairs.push(['ABV', ((og - fg) * 131.25).toFixed(1) + '%']);
+    }
+  }
+  if (stageObj.id === 'aging') {
+    const tl = data.tasting_logs || [];
+    if (data.start_date)    pairs.push(['Aging Since',   formatDate(data.start_date)]);
+    if (data.target_date)   pairs.push(['Drink By',      formatDate(data.target_date)]);
+    if (tl.length)          pairs.push(['Tastings',      tl.length]);
+    if (data.bottles_remaining !== undefined) pairs.push(['Bottles Left', data.bottles_remaining]);
+  }
+  const rows = pairs.map(([k,v]) => `
+    <span style="font-size:.82rem;color:var(--muted)">${k}:</span>
+    <span style="font-size:.82rem;font-weight:bold;color:var(--ink)">${escHtml(String(v))}</span>`).join('');
+
+  return `
+    <div class="stage-card" style="opacity:.82">
+      <div class="stage-card-header" style="padding:12px 20px">
+        <h3 style="font-size:.95rem">${stageObj.icon} ${stageObj.label} <span style="color:var(--green);font-size:.75rem;margin-left:6px">✓ Complete</span></h3>
+        <button class="btn btn-outline btn-sm" onclick="revisitStage('${stageObj.id}')">Edit</button>
+      </div>
+      ${pairs.length ? `<div class="stage-card-body" style="padding:14px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px 16px">${rows}</div>` : ''}
+    </div>`;
+}
+
+function revisitStage(stageId) {
+  const data = loadData();
+  const batch = data.batches.find(b => b.id === currentBatchId);
+  if (!batch) return;
+  // Render with a temp object so current_stage in storage is preserved
+  renderDetail({...batch, current_stage: stageId});
+  showToast(`Editing: ${getStageInfo(stageId).label}`);
+}
+
+// ─── Export / Import ─────────────────────────────────────────────────
+function exportData() {
+  const json = JSON.stringify(loadData(), null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'vintners-log-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Data exported.', 'success');
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data.batches)) throw new Error('missing batches array');
+      const count = data.batches.length;
+      if (!confirm(`Import ${count} batch${count !== 1 ? 'es' : ''}? This replaces all current data.`)) return;
+      saveData(data);
+      renderDashboard();
+      showToast(`Imported ${count} batch${count !== 1 ? 'es' : ''}.`, 'success');
+    } catch {
+      showToast('Invalid file — use a Vintner\'s Log export.', 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ─── Init ────────────────────────────────────────────────────────────
+function init() {
+  seedCherryBatch();
+  renderDashboard();
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target === el) el.classList.remove('open');
+  });
+});
+
+init();
+</script>
+</body>
+</html>
