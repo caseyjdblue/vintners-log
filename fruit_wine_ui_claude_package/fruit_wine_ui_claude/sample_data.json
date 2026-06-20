@@ -1,0 +1,90 @@
+{
+  "user": {
+    "firstName": "Casey"
+  },
+  "dashboard": {
+    "activeBatches": 8,
+    "todayTasks": 5,
+    "featuredBatchId": "batch-2026-014",
+    "timeline": {
+      "fermenting": 3,
+      "nearingEnd": 2,
+      "aging": 2,
+      "ready": 1
+    }
+  },
+  "batches": [
+    {
+      "id": "batch-2026-014",
+      "batchNumber": "2026-014",
+      "name": "Blackberry Reserve",
+      "status": "Fermenting",
+      "phase": "Primary Fermentation",
+      "started": "2025-05-05",
+      "day": 17,
+      "estimatedTotalDays": 26,
+      "completionPercent": 65,
+      "specificGravity": 1.024,
+      "sgChange": -0.006,
+      "temperatureF": 68.4,
+      "temperatureStatus": "Stable",
+      "readings": [
+        { "date": "May 5", "sg": 1.092 },
+        { "date": "May 7", "sg": 1.076 },
+        { "date": "May 9", "sg": 1.058 },
+        { "date": "May 11", "sg": 1.046 },
+        { "date": "May 13", "sg": 1.039 },
+        { "date": "May 15", "sg": 1.032 },
+        { "date": "May 17", "sg": 1.030 },
+        { "date": "May 19", "sg": 1.028 },
+        { "date": "May 21", "sg": 1.024 }
+      ]
+    }
+  ],
+  "fruits": [
+    {
+      "name": "Blackberry",
+      "scientificName": "Rubus fruticosus",
+      "tag": "Popular",
+      "profile": {
+        "acidity": "High",
+        "sugar": "Medium",
+        "tannin": "Medium",
+        "pectin": "High"
+      },
+      "description": "Bold, rich, and complex. Blackberry wines have deep color, bright acidity, and notable structure that improves with age.",
+      "popularRecipes": ["Blackberry Merlot Style", "Blackberry Reserve", "Brambly Blend"]
+    }
+  ],
+  "recipes": [
+    {
+      "name": "Blackberry Merlot Style",
+      "rating": 4.8,
+      "reviewCount": 124,
+      "tag": "Premium Recipe",
+      "batchSize": "5.5 gal",
+      "body": "Medium",
+      "age": "12–18 mo",
+      "description": "A structured, dry red-style wine with notes of dark fruit, plum, and a hint of spice.",
+      "ingredients": [
+        { "name": "Blackberries (fresh/frozen)", "amount": "16 lbs" },
+        { "name": "Sugar", "amount": "3.0 lbs" },
+        { "name": "Pectic Enzyme", "amount": "1 tsp" },
+        { "name": "Yeast (Red Wine)", "amount": "1 pack" },
+        { "name": "Tannin", "amount": "1 tsp" }
+      ]
+    }
+  ],
+  "inventory": [
+    { "name": "Blackberries (Frozen)", "detail": "32.5 lbs", "quantity": "2 bags", "category": "Fruit" },
+    { "name": "Concord Grapes", "detail": "18.0 lbs", "quantity": "1 bag", "category": "Fruit" },
+    { "name": "Lalvin 71B Yeast", "detail": "3 packs", "quantity": "2 pkgs", "category": "Yeast" },
+    { "name": "Pectic Enzyme", "detail": "2 tsp", "quantity": "", "category": "Additives" }
+  ],
+  "tasks": [
+    { "name": "Take SG reading", "batch": "Blackberry Reserve", "batchNumber": "2026-014", "due": "10:00 AM", "status": "dueToday", "done": false },
+    { "name": "Rack to secondary", "batch": "Cherry Delight", "batchNumber": "2026-009", "due": "2:00 PM", "status": "dueToday", "done": false },
+    { "name": "Add Campden", "batch": "Peach Sunset", "batchNumber": "2026-010", "due": "4:00 PM", "status": "dueToday", "done": false },
+    { "name": "Sanitize equipment", "batch": "General Task", "batchNumber": null, "due": "6:00 PM", "status": "dueToday", "done": false }
+  ]
+}

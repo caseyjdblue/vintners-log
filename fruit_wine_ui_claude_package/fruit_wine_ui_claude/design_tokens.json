@@ -1,0 +1,103 @@
+{
+  "appName": "Fruited Plains Winery",
+  "styleName": "Soft Artisan Vineyard",
+  "colors": {
+    "background": "#FBF7F2",
+    "backgroundAlt": "#F7EEF6",
+    "surface": "#FFFDFC",
+    "surfaceSoft": "#FAF2F8",
+    "border": "#E8DED8",
+    "textPrimary": "#1F1A1D",
+    "textSecondary": "#6F626B",
+    "textMuted": "#9B8C96",
+    "primary": "#A8459F",
+    "primaryDark": "#7A2D73",
+    "primarySoft": "#EBD6E9",
+    "primaryPale": "#F7EEF6",
+    "gold": "#D8A13A",
+    "blackberry": "#5D2A68",
+    "cherry": "#B93A50",
+    "blueberry": "#4557A5",
+    "strawberry": "#D9576A",
+    "success": "#3E8F62",
+    "warning": "#D48A21",
+    "danger": "#CC4B4B"
+  },
+  "typography": {
+    "uiFont": "Inter, SF Pro Display, system-ui, sans-serif",
+    "displayFont": "Cormorant Garamond, Playfair Display, Georgia, serif",
+    "scale": {
+      "xs": "12px",
+      "sm": "14px",
+      "base": "16px",
+      "lg": "18px",
+      "xl": "24px",
+      "2xl": "32px",
+      "3xl": "40px"
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    }
+  },
+  "spacing": {
+    "xs": "4px",
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "24px",
+    "2xl": "32px"
+  },
+  "radius": {
+    "sm": "10px",
+    "md": "14px",
+    "lg": "18px",
+    "xl": "24px",
+    "full": "999px"
+  },
+  "shadows": {
+    "card": "0 8px 24px rgba(80, 45, 70, 0.08)",
+    "floating": "0 12px 32px rgba(80, 45, 70, 0.14)",
+    "subtle": "0 4px 12px rgba(80, 45, 70, 0.06)"
+  },
+  "components": {
+    "card": {
+      "background": "#FFFDFC",
+      "border": "1px solid #E8DED8",
+      "borderRadius": "18px",
+      "boxShadow": "0 8px 24px rgba(80, 45, 70, 0.08)",
+      "padding": "16px"
+    },
+    "primaryButton": {
+      "background": "linear-gradient(135deg, #A8459F, #7A2D73)",
+      "color": "#FFFFFF",
+      "borderRadius": "16px",
+      "height": "48px",
+      "fontWeight": 600
+    },
+    "secondaryButton": {
+      "background": "#FFFDFC",
+      "color": "#1F1A1D",
+      "border": "1px solid #E8DED8",
+      "borderRadius": "16px",
+      "height": "48px",
+      "fontWeight": 500
+    },
+    "chip": {
+      "background": "#F7EEF6",
+      "activeBackground": "#A8459F",
+      "activeColor": "#FFFFFF",
+      "borderRadius": "999px",
+      "padding": "6px 12px"
+    },
+    "bottomNav": {
+      "background": "rgba(255, 253, 252, 0.96)",
+      "borderTop": "1px solid #E8DED8",
+      "activeColor": "#A8459F",
+      "inactiveColor": "#6F626B",
+      "centerActionBackground": "#A8459F"
+    }
+  }
+}
